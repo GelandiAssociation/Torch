@@ -2,6 +2,8 @@ package net.minecraft.server;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
 
 import co.aikar.timings.WorldTimingsHandler;
 
@@ -55,7 +57,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     public final List<TileEntity> tileEntityListTick;
     /** tileEntityToUnload */
     private final Set<TileEntity> tileEntityListUnload;
-    // public final List<EntityHuman> players; // Torch - List -> Set
+    public final List<EntityHuman> players;
     public final MethodProfiler methodProfiler;
     public Scoreboard scoreboard;
     protected IChunkProvider chunkProvider;
@@ -183,6 +185,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         worldListeners = reactor.getWorldListeners();
         entitiesById = reactor.getEntitiesById();
         random = reactor.getRandom();
+        players = reactor.getPlayers();
         
         a = reactor.getSeaLevel();
         b = reactor.getAddedTileEntities();

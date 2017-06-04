@@ -23,6 +23,7 @@ import org.spigotmc.SpigotWorldConfig;
 import org.torch.api.Async;
 import org.torch.api.IWorldAccess;
 import org.torch.api.TorchReactor;
+import org.torch.utils.collection.WrappedCollections;
 import org.torch.utils.random.LightRandom;
 
 import com.destroystokyo.paper.PaperWorldConfig;
@@ -77,7 +78,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * A list of all loaded entities in the world
      */
     @SuppressWarnings("serial")
-    public final List<Entity> entityList = new java.util.ArrayList<Entity>() {
+    public final List<Entity> entityList = new ArrayList<Entity>() {
         @Override
         public Entity remove(int index) {
             guard();
@@ -116,7 +117,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     /**
      * Players in the world
      */
-    public final Set<EntityHuman> players = HashObjSets.newMutableSet();
+    public final List<EntityHuman> players = WrappedCollections.createHashSetBackedArrayList();
     /**
      * A list of all the lightning entities
      */
