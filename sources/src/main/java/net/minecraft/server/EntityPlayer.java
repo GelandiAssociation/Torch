@@ -552,7 +552,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
 
     private boolean canPvP() {
         // CraftBukkit - this.server.getPvP() -> this.world.pvpMode
-        return this.world.pvpMode;
+        return this.world.getReactor().pvpMode;
     }
 
 

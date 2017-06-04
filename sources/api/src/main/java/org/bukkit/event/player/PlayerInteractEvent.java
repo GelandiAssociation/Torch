@@ -4,6 +4,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
+import org.torch.event.MutableEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -20,7 +21,7 @@ import org.bukkit.inventory.EquipmentSlot;
  * This event will fire as cancelled if the vanilla behavior
  * is to do nothing (e.g interacting with air)
  */
-public class PlayerInteractEvent extends PlayerEvent implements Cancellable {
+public class PlayerInteractEvent extends PlayerEvent implements Cancellable, MutableEvent {
     private static final HandlerList handlers = new HandlerList();
     protected ItemStack item;
     protected Action action;
@@ -33,12 +34,12 @@ public class PlayerInteractEvent extends PlayerEvent implements Cancellable {
     
     private static PlayerInteractEvent instance;
     
-    public static PlayerInteractEvent requestMutable(final Player who, final Action action, final ItemStack item, final Block clickedBlock, final BlockFace clickedFace) {
-        return requestMutable(who, action, item, clickedBlock, clickedFace, EquipmentSlot.HAND);
+    public static PlayerInteractEvent of(final Player who, final Action action, final ItemStack item, final Block clickedBlock, final BlockFace clickedFace) {
+        return of(who, action, item, clickedBlock, clickedFace, EquipmentSlot.HAND);
     }
     
-    public static PlayerInteractEvent requestMutable(final Player who, final Action action, final ItemStack item, final Block clickedBlock, final BlockFace clickedFace, final EquipmentSlot hand) {
-        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Async request mutable event!");
+    public static PlayerInteractEvent of(final Player who, final Action action, final ItemStack item, final Block clickedBlock, final BlockFace clickedFace, final EquipmentSlot hand) {
+        MutableEvent.init(instance);
         
         if (instance == null) {
             instance = new PlayerInteractEvent(who, action, item, clickedBlock, clickedFace, hand);

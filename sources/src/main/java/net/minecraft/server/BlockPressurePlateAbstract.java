@@ -108,7 +108,7 @@ public abstract class BlockPressurePlateAbstract extends Block {
         org.bukkit.plugin.PluginManager manager = world.getServer().getPluginManager();
 
         if (flag != flag1) {
-            BlockRedstoneEvent eventRedstone = BlockRedstoneEvent.requestMutable(bworld.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), i, j);
+            BlockRedstoneEvent eventRedstone = BlockRedstoneEvent.of(bworld.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), i, j); // Torch
             manager.callEvent(eventRedstone);
 
             flag1 = eventRedstone.getNewCurrent() > 0;

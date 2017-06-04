@@ -229,7 +229,7 @@ public class CraftEventFactory {
             itemInHand = null;
         }
 
-        PlayerInteractEvent event = PlayerInteractEvent.requestMutable(player, action, itemInHand, blockClicked, blockFace, (hand == null) ? null : ((hand == EnumHand.OFF_HAND) ? EquipmentSlot.OFF_HAND : EquipmentSlot.HAND));
+        PlayerInteractEvent event = PlayerInteractEvent.of(player, action, itemInHand, blockClicked, blockFace, (hand == null) ? null : ((hand == EnumHand.OFF_HAND) ? EquipmentSlot.OFF_HAND : EquipmentSlot.HAND)); // Torch
         if (cancelledBlock) {
             event.setUseInteractedBlock(Event.Result.DENY);
         }
@@ -743,7 +743,7 @@ public class CraftEventFactory {
     }
 
     public static EntityTargetLivingEntityEvent callEntityTargetLivingEvent(Entity entity, EntityLiving target, EntityTargetEvent.TargetReason reason) {
-        EntityTargetLivingEntityEvent event = EntityTargetLivingEntityEvent.requestMutable(entity.getBukkitEntity(), (LivingEntity) target.getBukkitEntity(), reason);
+        EntityTargetLivingEntityEvent event = EntityTargetLivingEntityEvent.of(entity.getBukkitEntity(), (LivingEntity) target.getBukkitEntity(), reason); // Torch
         entity.getBukkitEntity().getServer().getPluginManager().callEvent(event);
         return event;
     }
@@ -839,7 +839,7 @@ public class CraftEventFactory {
     }
 
     public static BlockRedstoneEvent callRedstoneChange(World world, int x, int y, int z, int oldCurrent, int newCurrent) {
-        BlockRedstoneEvent event = BlockRedstoneEvent.requestMutable(world.getWorld().getBlockAt(x, y, z), oldCurrent, newCurrent);
+        BlockRedstoneEvent event = BlockRedstoneEvent.of(world.getWorld().getBlockAt(x, y, z), oldCurrent, newCurrent); // Torch
         world.getServer().getPluginManager().callEvent(event);
         return event;
     }

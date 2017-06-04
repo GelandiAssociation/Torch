@@ -70,6 +70,7 @@ public class WorldData {
 
     public static void a(DataConverterManager dataconvertermanager) {
         dataconvertermanager.a(DataConverterTypes.LEVEL, new DataInspector() {
+            @Override
             public NBTTagCompound a(DataConverter dataconverter, NBTTagCompound nbttagcompound, int i) {
                 if (nbttagcompound.hasKeyOfType("Player", 10)) {
                     nbttagcompound.set("Player", dataconverter.a(DataConverterTypes.PLAYER, nbttagcompound.getCompound("Player"), i));
@@ -348,8 +349,8 @@ public class WorldData {
         nbttagcompound.setDouble("BorderSafeZone", this.J);
         nbttagcompound.setDouble("BorderDamagePerBlock", this.K);
         nbttagcompound.setDouble("BorderSizeLerpTarget", this.I);
-        nbttagcompound.setDouble("BorderWarningBlocks", (double) this.L);
-        nbttagcompound.setDouble("BorderWarningTime", (double) this.M);
+        nbttagcompound.setDouble("BorderWarningBlocks", this.L);
+        nbttagcompound.setDouble("BorderWarningTime", this.M);
         if (this.C != null) {
             nbttagcompound.setByte("Difficulty", (byte) this.C.a());
         }
@@ -630,8 +631,8 @@ public class WorldData {
         this.C = enumdifficulty;
         // CraftBukkit start
         PacketPlayOutServerDifficulty packet = new PacketPlayOutServerDifficulty(this.getDifficulty(), this.isDifficultyLocked());
-        for (EntityPlayer player : (java.util.List<EntityPlayer>) (java.util.List) world.players) {
-            player.playerConnection.sendPacket(packet);
+        for (EntityHuman player : world.getReactor().players) {
+            ((EntityPlayer) player).playerConnection.sendPacket(packet);
         }
         // CraftBukkit end
     }
@@ -650,6 +651,7 @@ public class WorldData {
                 return String.valueOf(WorldData.this.getSeed());
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -659,6 +661,7 @@ public class WorldData {
                 return String.format("ID %02d - %s, ver %d. Features enabled: %b", new Object[] { Integer.valueOf(WorldData.this.f.g()), WorldData.this.f.name(), Integer.valueOf(WorldData.this.f.getVersion()), Boolean.valueOf(WorldData.this.y)});
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -668,6 +671,7 @@ public class WorldData {
                 return WorldData.this.g;
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -677,6 +681,7 @@ public class WorldData {
                 return CrashReportSystemDetails.a(WorldData.this.h, WorldData.this.i, WorldData.this.j);
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -686,6 +691,7 @@ public class WorldData {
                 return String.format("%d game time, %d day time", new Object[] { Long.valueOf(WorldData.this.k), Long.valueOf(WorldData.this.l)});
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -695,6 +701,7 @@ public class WorldData {
                 return String.valueOf(WorldData.this.p);
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -719,6 +726,7 @@ public class WorldData {
                 return String.format("0x%05X - %s", new Object[] { Integer.valueOf(WorldData.this.r), s});
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -728,6 +736,7 @@ public class WorldData {
                 return String.format("Rain time: %d (now: %b), thunder time: %d (now: %b)", new Object[] { Integer.valueOf(WorldData.this.u), Boolean.valueOf(WorldData.this.t), Integer.valueOf(WorldData.this.w), Boolean.valueOf(WorldData.this.v)});
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -737,6 +746,7 @@ public class WorldData {
                 return String.format("Game mode: %s (ID %d). Hardcore: %b. Cheats: %b", new Object[] { WorldData.this.x.b(), Integer.valueOf(WorldData.this.x.getId()), Boolean.valueOf(WorldData.this.z), Boolean.valueOf(WorldData.this.A)});
             }
 
+            @Override
             public Object call() throws Exception {
                 return this.a();
             }
@@ -744,7 +754,7 @@ public class WorldData {
     }
 
     public NBTTagCompound a(DimensionManager dimensionmanager) {
-        NBTTagCompound nbttagcompound = (NBTTagCompound) this.N.get(dimensionmanager);
+        NBTTagCompound nbttagcompound = this.N.get(dimensionmanager);
 
         return nbttagcompound == null ? new NBTTagCompound() : nbttagcompound;
     }

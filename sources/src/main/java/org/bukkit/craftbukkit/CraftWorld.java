@@ -102,7 +102,7 @@ public class CraftWorld implements World {
     }
     @Override
     public int getPlayerCount() {
-        return world.players.size();
+        return world.getReactor().players.size();
     }
     // Paper end
 
@@ -523,11 +523,11 @@ public class CraftWorld implements World {
 
     @Override
     public boolean generateTree(Location loc, TreeType type, BlockChangeDelegate delegate) {
-        world.captureTreeGeneration = true;
-        world.captureBlockStates = true;
+        world.getReactor().captureTreeGeneration = true;
+        world.getReactor().captureBlockStates = true;
         boolean grownTree = generateTree(loc, type);
-        world.captureBlockStates = false;
-        world.captureTreeGeneration = false;
+        world.getReactor().captureBlockStates = false;
+        world.getReactor().captureTreeGeneration = false;
         if (grownTree) { // Copy block data to delegate
             for (BlockState blockstate : world.capturedBlockStates) {
                 int x = blockstate.getX();
@@ -835,9 +835,9 @@ public class CraftWorld implements World {
 
     @Override
     public List<Player> getPlayers() {
-        List<Player> list = new ArrayList<Player>(world.players.size());
+        List<Player> list = new ArrayList<Player>(world.getReactor().players.size());
 
-        for (EntityHuman human : world.players) {
+        for (EntityHuman human : world.getReactor().players) {
             HumanEntity bukkitEntity = human.getBukkitEntity();
 
             if ((bukkitEntity != null) && (bukkitEntity instanceof Player)) {
@@ -939,12 +939,12 @@ public class CraftWorld implements World {
 
     @Override
     public boolean getPVP() {
-        return world.pvpMode;
+        return world.getReactor().pvpMode;
     }
 
     @Override
     public void setPVP(boolean pvp) {
-        world.pvpMode = pvp;
+        world.getReactor().pvpMode = pvp;
     }
 
     public void playEffect(Player player, Effect effect, int data) {
@@ -1379,12 +1379,12 @@ public class CraftWorld implements World {
 
     @Override
     public boolean getKeepSpawnInMemory() {
-        return world.keepSpawnInMemory;
+        return world.getReactor().keepSpawnInMemory;
     }
 
     @Override
     public void setKeepSpawnInMemory(boolean keepLoaded) {
-        world.keepSpawnInMemory = keepLoaded;
+        world.getReactor().keepSpawnInMemory = keepLoaded;
         // Grab the worlds spawn chunk
         BlockPosition chunkcoordinates = this.world.getSpawn();
         int chunkCoordX = chunkcoordinates.getX() >> 4;
@@ -1460,22 +1460,22 @@ public class CraftWorld implements World {
 
     @Override
     public long getTicksPerAnimalSpawns() {
-        return world.ticksPerAnimalSpawns;
+        return world.getReactor().ticksPerAnimalSpawns;
     }
 
     @Override
     public void setTicksPerAnimalSpawns(int ticksPerAnimalSpawns) {
-        world.ticksPerAnimalSpawns = ticksPerAnimalSpawns;
+        world.getReactor().ticksPerAnimalSpawns = ticksPerAnimalSpawns;
     }
 
     @Override
     public long getTicksPerMonsterSpawns() {
-        return world.ticksPerMonsterSpawns;
+        return world.getReactor().ticksPerMonsterSpawns;
     }
 
     @Override
     public void setTicksPerMonsterSpawns(int ticksPerMonsterSpawns) {
-        world.ticksPerMonsterSpawns = ticksPerMonsterSpawns;
+        world.getReactor().ticksPerMonsterSpawns = ticksPerMonsterSpawns;
     }
 
     @Override

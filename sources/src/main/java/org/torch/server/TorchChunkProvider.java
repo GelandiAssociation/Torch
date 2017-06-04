@@ -151,16 +151,16 @@ public final class TorchChunkProvider implements net.minecraft.server.IChunkProv
     }
 
     @Override
-    public Chunk getChunkAt(int i, int j) {
-        return getChunkAt(i, j, null);
+    public Chunk getChunkAt(int chunkX, int chunkZ) {
+        return getChunkAt(chunkX, chunkZ, null);
     }
 
-    public Chunk getChunkAt(int i, int j, Runnable runnable) {
-        return getChunkAt(i, j, runnable, true);
+    public Chunk getChunkAt(int chunkX, int chunkZ, Runnable callback) {
+        return getChunkAt(chunkX, chunkZ, callback, true);
     }
 
-    public Chunk getChunkAt(int i, int j, Runnable runnable, boolean generate) {
-        Chunk chunk = getChunkIfLoaded(i, j, false);
+    public Chunk getChunkAt(int chunkX, int chunkZ, Runnable callback, boolean generate) {
+        Chunk chunk = getChunkIfLoaded(chunkX, chunkZ, false);
         ChunkRegionLoader loader = null;
 
         if (servant.chunkLoader instanceof ChunkRegionLoader) {
@@ -168,19 +168,19 @@ public final class TorchChunkProvider implements net.minecraft.server.IChunkProv
         }
 
         // We can only use the queue for already generated chunks
-        if (chunk == null && loader != null && loader.chunkExists(i, j)) {
-            if (runnable != null) {
-                ChunkIOExecutor.queueChunkLoad(world, loader, servant, i, j, runnable);
+        if (chunk == null && loader != null && loader.chunkExists(chunkX, chunkZ)) {
+            if (callback != null) {
+                ChunkIOExecutor.queueChunkLoad(world, loader, servant, chunkX, chunkZ, callback);
                 return null;
             } else {
-                chunk = ChunkIOExecutor.syncChunkLoad(world, loader, servant, i, j);
+                chunk = ChunkIOExecutor.syncChunkLoad(world, loader, servant, chunkX, chunkZ);
             }
         } else if (chunk == null && generate) {
-            chunk = originalGetChunkAt(i, j);
+            chunk = originalGetChunkAt(chunkX, chunkZ);
         }
 
         // If we didn't load the chunk async and have a callback run it now
-        if (runnable != null) runnable.run();
+        if (callback != null) callback.run();
 
         return chunk;
     }

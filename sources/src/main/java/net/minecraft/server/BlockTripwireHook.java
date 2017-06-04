@@ -169,7 +169,7 @@ public class BlockTripwireHook extends Block {
         // CraftBukkit start
         org.bukkit.block.Block block = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
 
-        BlockRedstoneEvent eventRedstone = BlockRedstoneEvent.requestMutable(block, 15, 0);
+        BlockRedstoneEvent eventRedstone = BlockRedstoneEvent.of(block, 15, 0); // Torch
         world.getServer().getPluginManager().callEvent(eventRedstone);
 
         if (eventRedstone.getNewCurrent() > 0) {

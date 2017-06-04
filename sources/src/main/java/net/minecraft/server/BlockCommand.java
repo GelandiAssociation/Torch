@@ -37,7 +37,7 @@ public class BlockCommand extends BlockTileEntity {
         int old = flag1 ? 15 : 0;
         int current = flag ? 15 : 0;
 
-        BlockRedstoneEvent eventRedstone = BlockRedstoneEvent.requestMutable(bukkitBlock, old, current);
+        BlockRedstoneEvent eventRedstone = BlockRedstoneEvent.of(bukkitBlock, old, current); // Torch
         world.getServer().getPluginManager().callEvent(eventRedstone);
         // CraftBukkit end
 

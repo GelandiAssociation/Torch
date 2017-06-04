@@ -140,7 +140,7 @@ public class BlockRedstoneTorch extends BlockTorch {
         org.bukkit.block.Block block = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
         int oldCurrent = this.isOn ? 15 : 0;
 
-        BlockRedstoneEvent event = BlockRedstoneEvent.requestMutable(block, oldCurrent, oldCurrent);
+        BlockRedstoneEvent event = BlockRedstoneEvent.of(block, oldCurrent, oldCurrent); // Torch
         // CraftBukkit end
 
         if (this.isOn) {

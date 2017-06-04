@@ -15,9 +15,9 @@ import org.torch.api.Async;
 public final class TorchIOThread { // TODO: configurable threads
     private final static Executor ioExecutor = Executors.newFixedThreadPool(2, new ThreadFactoryBuilder().setNameFormat("File IO Thread - %1$d").setPriority(1).build());
     
-    private final static AtomicBoolean isWaitingFinish = new AtomicBoolean(false);
+    private final static AtomicBoolean isWaitingFinish = new AtomicBoolean();
     
-    private final static AtomicInteger queuedChunkCounter = new AtomicInteger(0);
+    private final static AtomicInteger queuedChunkCounter = new AtomicInteger();
     
     private TorchIOThread() {}
     

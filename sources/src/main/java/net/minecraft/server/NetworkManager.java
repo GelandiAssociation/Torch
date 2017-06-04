@@ -1,6 +1,5 @@
 package net.minecraft.server;
 
-import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -17,8 +16,6 @@ import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import java.net.SocketAddress;
-import java.util.Queue;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
 import org.apache.commons.lang3.ArrayUtils;

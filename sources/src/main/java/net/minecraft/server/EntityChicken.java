@@ -25,7 +25,7 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	protected void r() {
+    protected void r() {
         this.goalSelector.a(0, new PathfinderGoalFloat(this));
         this.goalSelector.a(1, new PathfinderGoalPanic(this, 1.4D));
         this.goalSelector.a(2, new PathfinderGoalBreed(this, 1.0D));
@@ -37,19 +37,19 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	public float getHeadHeight() {
+    public float getHeadHeight() {
         return this.length;
     }
 
     @Override
-	protected void initAttributes() {
+    protected void initAttributes() {
         super.initAttributes();
         this.getAttributeInstance(GenericAttributes.maxHealth).setValue(4.0D);
         this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.25D);
     }
 
     @Override
-	public void n() {
+    public void n() {
         // CraftBukkit start
         if (this.isChickenJockey()) {
             this.persistent = !this.isTypeNotPersistent();
@@ -81,30 +81,30 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	public void e(float f, float f1) {}
+    public void e(float f, float f1) {}
 
     @Override
-	protected SoundEffect G() {
+    protected SoundEffect G() {
         return SoundEffects.aa;
     }
 
     @Override
-	protected SoundEffect bW() {
+    protected SoundEffect bW() {
         return SoundEffects.ad;
     }
 
     @Override
-	protected SoundEffect bX() {
+    protected SoundEffect bX() {
         return SoundEffects.ab;
     }
 
     @Override
-	protected void a(BlockPosition blockposition, Block block) {
+    protected void a(BlockPosition blockposition, Block block) {
         this.a(SoundEffects.ae, 0.15F, 1.0F);
     }
 
     @Override
-	@Nullable
+    @Nullable
     protected MinecraftKey J() {
         return LootTables.D;
     }
@@ -114,12 +114,12 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	public boolean e(ItemStack itemstack) {
+    public boolean e(ItemStack itemstack) {
         return EntityChicken.bE.contains(itemstack.getItem());
     }
 
     @Override
-	protected int getExpValue(EntityHuman entityhuman) {
+    protected int getExpValue(EntityHuman entityhuman) {
         return this.isChickenJockey() ? 10 : super.getExpValue(entityhuman);
     }
 
@@ -128,7 +128,7 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	public void a(NBTTagCompound nbttagcompound) {
+    public void a(NBTTagCompound nbttagcompound) {
         super.a(nbttagcompound);
         this.bD = nbttagcompound.getBoolean("IsChickenJockey");
         if (nbttagcompound.hasKey("EggLayTime")) {
@@ -138,19 +138,19 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	public void b(NBTTagCompound nbttagcompound) {
+    public void b(NBTTagCompound nbttagcompound) {
         super.b(nbttagcompound);
         nbttagcompound.setBoolean("IsChickenJockey", this.bD);
         nbttagcompound.setInt("EggLayTime", this.bC);
     }
 
     @Override
-	protected boolean isTypeNotPersistent() {
+    protected boolean isTypeNotPersistent() {
         return this.isChickenJockey() && !this.isVehicle();
     }
 
     @Override
-	public void k(Entity entity) {
+    public void k(Entity entity) {
         super.k(entity);
         float f = MathHelper.sin(this.aN * 0.017453292F);
         float f1 = MathHelper.cos(this.aN * 0.017453292F);
@@ -173,7 +173,7 @@ public class EntityChicken extends EntityAnimal {
     }
 
     @Override
-	public EntityAgeable createChild(EntityAgeable entityageable) {
+    public EntityAgeable createChild(EntityAgeable entityageable) {
         return this.b(entityageable);
     }
 }

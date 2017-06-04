@@ -1,6 +1,5 @@
 package net.minecraft.server;
 
-import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -64,15 +63,17 @@ public class EntityTrackerEntry {
         this.y = entity.onGround;
     }
 
+    @Override
     public boolean equals(Object object) {
         return object instanceof EntityTrackerEntry ? ((EntityTrackerEntry) object).tracker.getId() == this.tracker.getId() : false;
     }
 
+    @Override
     public int hashCode() {
         return this.tracker.getId();
     }
 
-    public void track(List<EntityHuman> list) {
+    public void track(Collection<EntityHuman> players) { // Torch - List -> Collection (support for Set)
         this.b = false;
         if (!this.isMoving || this.tracker.d(this.q, this.r, this.s) > 16.0D) {
             this.q = this.tracker.locX;
@@ -80,7 +81,7 @@ public class EntityTrackerEntry {
             this.s = this.tracker.locZ;
             this.isMoving = true;
             this.b = true;
-            this.scanPlayers(list);
+            this.scanPlayers(players);
         }
 
         List list1 = this.tracker.bx();
@@ -104,7 +105,7 @@ public class EntityTrackerEntry {
                     EntityPlayer entityplayer = (EntityPlayer) entityhuman;
 
                     worldmap.a(entityplayer, itemstack);
-                    Packet packet = Items.FILLED_MAP.a(itemstack, this.tracker.world, (EntityHuman) entityplayer);
+                    Packet packet = Items.FILLED_MAP.a(itemstack, this.tracker.world, entityplayer);
 
                     if (packet != null) {
                         entityplayer.playerConnection.sendPacket(packet);
@@ -500,22 +501,21 @@ public class EntityTrackerEntry {
     }
     private boolean isInRangeOfPlayer(EntityPlayer entityplayer) {
         // Paper end
-        double d0 = entityplayer.locX - (double) this.xLoc / 4096.0D;
-        double d1 = entityplayer.locZ - (double) this.zLoc / 4096.0D;
+        double d0 = entityplayer.locX - this.xLoc / 4096.0D;
+        double d1 = entityplayer.locZ - this.zLoc / 4096.0D;
         int i = Math.min(this.e, this.f);
 
-        return d0 >= (double) (-i) && d0 <= (double) i && d1 >= (double) (-i) && d1 <= (double) i && this.tracker.a(entityplayer);
+        return d0 >= (-i) && d0 <= i && d1 >= (-i) && d1 <= i && this.tracker.a(entityplayer);
     }
 
     private boolean e(EntityPlayer entityplayer) {
         return entityplayer.x().getPlayerChunkMap().a(entityplayer, this.tracker.ab, this.tracker.ad);
     }
 
-    public void scanPlayers(List<EntityHuman> list) {
-        for (int i = 0; i < list.size(); ++i) {
-            this.updatePlayer((EntityPlayer) list.get(i));
+    public void scanPlayers(Collection<EntityHuman> players) { // Torch - List -> Collection (support for Set)
+        for (EntityHuman each : players) {
+            this.updatePlayer((EntityPlayer) each);
         }
-
     }
 
     private Packet<?> e() {

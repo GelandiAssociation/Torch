@@ -251,9 +251,9 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
         // Setup instance for org.torch.api.TorchServant
         if (proxy == Proxy.NO_PROXY) {
             // Request from dedicated server constructor
-            reactor = new TorchServer(optionSet, dataconvertermanager, yggdrasilauthenticationservice, minecraftsessionservice, gameprofilerepository, usercache);
+            reactor = new TorchServer(optionSet, dataconvertermanager, yggdrasilauthenticationservice, minecraftsessionservice, gameprofilerepository, usercache.getReactor(), (DedicatedServer) this);
         } else {
-            reactor = new TorchServer(optionSet, proxy, dataconvertermanager, yggdrasilauthenticationservice, minecraftsessionservice, gameprofilerepository, usercache);
+            reactor = new TorchServer(optionSet, proxy, dataconvertermanager, yggdrasilauthenticationservice, minecraftsessionservice, gameprofilerepository, usercache.getReactor(), this);
         }
 
         /**
@@ -313,7 +313,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
         Q = reactor.isServerIsRunning();
         R = reactor.getTimeOfLastWarning();
         S = reactor.getUserMessage();
-        T = reactor.isStartProfiling();
+        //T = reactor.isStartProfiling(); // unused
         U = reactor.isGamemodeForced();
         V = reactor.getAuthService();
         W = reactor.getSessionService();
@@ -717,7 +717,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     }
 
     public void ar() {
-        reactor.startProfiling();
+        T = true;//reactor.startProfiling();
     }
 
     @Override

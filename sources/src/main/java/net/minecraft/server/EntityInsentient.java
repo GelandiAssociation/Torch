@@ -141,7 +141,7 @@ public abstract class EntityInsentient extends EntityLiving {
             if (entityliving != null) {
                 ctarget = (CraftLivingEntity) entityliving.getBukkitEntity();
             }
-            EntityTargetLivingEntityEvent event = EntityTargetLivingEntityEvent.requestMutable(this.getBukkitEntity(), ctarget, reason);
+            EntityTargetLivingEntityEvent event = EntityTargetLivingEntityEvent.of(this.getBukkitEntity(), ctarget, reason); // Torch
             world.getServer().getPluginManager().callEvent(event);
             if (event.isCancelled()) {
                 return false;
@@ -608,6 +608,7 @@ public abstract class EntityInsentient extends EntityLiving {
         return true;
     }
 
+    public boolean isNotPersistentType() { return isTypeNotPersistent(); } // ALIAS
     protected boolean isTypeNotPersistent() {
         return true;
     }

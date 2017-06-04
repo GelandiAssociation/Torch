@@ -7,8 +7,8 @@ import net.minecraft.server.Entity;
 import net.minecraft.server.EntityHuman;
 import net.minecraft.server.EntityInsentient;
 import net.minecraft.server.IBlockData;
-import net.minecraft.server.IWorldAccess;
 import net.minecraft.server.NavigationAbstract;
+import net.minecraft.server.NavigationListener;
 import net.minecraft.server.PathEntity;
 import net.minecraft.server.PathPoint;
 import net.minecraft.server.SoundCategory;
@@ -25,11 +25,11 @@ import javax.annotation.Nullable;
 @Getter
 public final class TorchNavigationListener implements org.torch.api.IWorldAccess, TorchReactor {
     /** The legacy */
-    private final IWorldAccess servant;
+    private final NavigationListener servant;
     
     private final Map<EntityInsentient, NavigationAbstract> navigators = HashObjObjMaps.newMutableMap();
     
-    public TorchNavigationListener(@Nullable IWorldAccess legacy) {
+    public TorchNavigationListener(@Nullable NavigationListener legacy) {
         servant = legacy;
     }
     

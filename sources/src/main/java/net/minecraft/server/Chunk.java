@@ -541,7 +541,7 @@ public class Chunk {
                 }
 
                 // CraftBukkit - Don't place while processing the BlockPlaceEvent, unless it's a BlockContainer. Prevents blocks such as TNT from activating when cancelled.
-                if (block1 != block  && (!this.world.captureBlockStates || block instanceof BlockTileEntity)) {
+                if (block1 != block  && (!this.world.getReactor().captureBlockStates || block instanceof BlockTileEntity)) {
                     block.onPlace(this.world, blockposition, iblockdata);
                 }
 
@@ -727,7 +727,7 @@ public class Chunk {
     public TileEntity a(BlockPosition blockposition, Chunk.EnumTileEntityState chunk_enumtileentitystate) {
         // CraftBukkit start
         TileEntity tileentity = null;
-        if (world.captureBlockStates) {
+        if (world.getReactor().captureBlockStates) {
             tileentity = world.capturedTileEntities.get(blockposition);
         }
         if (tileentity == null) {
@@ -1055,13 +1055,13 @@ public class Chunk {
 
             org.bukkit.World world = this.world.getWorld();
             if (world != null) {
-                this.world.populating = true;
+                this.world.getReactor().populating = true;
                 try {
                     for (org.bukkit.generator.BlockPopulator populator : world.getPopulators()) {
                         populator.populate(world, random, bukkitChunk);
                     }
                 } finally {
-                    this.world.populating = false;
+                    this.world.getReactor().populating = false;
                 }
             }
             BlockSand.instaFall = false;

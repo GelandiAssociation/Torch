@@ -3,6 +3,7 @@ package org.bukkit.event.entity;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.torch.event.MutableEvent;
 
 /**
  * Called when an Entity targets a {@link LivingEntity} and can only target
@@ -16,8 +17,8 @@ public class EntityTargetLivingEntityEvent extends EntityTargetEvent {
     // Torch start
     private static EntityTargetLivingEntityEvent instance;
     
-    public static EntityTargetLivingEntityEvent requestMutable(final Entity entity, final LivingEntity target, final TargetReason reason) {
-        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Async request mutable event!");
+    public static EntityTargetLivingEntityEvent of(final Entity entity, final LivingEntity target, final TargetReason reason) {
+        MutableEvent.init(instance);
         
         if (instance == null) {
             instance = new EntityTargetLivingEntityEvent(entity, target, reason);

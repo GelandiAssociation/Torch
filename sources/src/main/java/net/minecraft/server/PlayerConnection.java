@@ -56,7 +56,6 @@ import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.util.NumberConversions;
-import org.spigotmc.AsyncCatcher;
 import org.torch.api.Async;
 import com.destroystokyo.paper.event.player.IllegalPacketEvent; // Paper
 import co.aikar.timings.MinecraftTimings; // Paper
@@ -399,7 +398,7 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                     // Skip the first time we do this
                     if (true) { // Spigot - don't skip any move events
                         Location oldTo = to.clone();
-                        PlayerMoveEvent event = PlayerMoveEvent.requestMutable(player, from, to);
+                        PlayerMoveEvent event = PlayerMoveEvent.of(player, from, to); // Torch
                         this.server.getPluginManager().callEvent(event);
 
                         // If the event is cancelled we move the player back to their old location.
@@ -618,7 +617,7 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                                 // Skip the first time we do this
                                 if (from.getX() != Double.MAX_VALUE) {
                                     Location oldTo = to.clone();
-                                    PlayerMoveEvent event = PlayerMoveEvent.requestMutable(player, from, to);
+                                    PlayerMoveEvent event = PlayerMoveEvent.of(player, from, to); // Torch
                                     this.server.getPluginManager().callEvent(event);
 
                                     // If the event is cancelled we move the player back to their old location.

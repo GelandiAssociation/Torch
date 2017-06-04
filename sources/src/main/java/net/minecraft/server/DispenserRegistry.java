@@ -484,7 +484,7 @@ public class DispenserRegistry {
                         }
                     }
 
-                    world.captureTreeGeneration = true;
+                    world.getReactor().captureTreeGeneration = true;
                     // CraftBukkit end
 
                     if (ItemDye.a(itemstack, world, blockposition)) {
@@ -493,7 +493,7 @@ public class DispenserRegistry {
                         this.b = false;
                     }
                     // CraftBukkit start
-                    world.captureTreeGeneration = false;
+                    world.getReactor().captureTreeGeneration = false;
                     if (world.capturedBlockStates.size() > 0) {
                         TreeType treeType = BlockSapling.treeType;
                         BlockSapling.treeType = null;

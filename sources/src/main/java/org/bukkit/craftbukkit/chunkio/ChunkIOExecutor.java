@@ -18,13 +18,13 @@ public class ChunkIOExecutor {
         return MCUtil.ensureMain("Async Chunk Load", () -> instance.getSkipQueue(new QueuedChunk(x, z, loader, world, provider))); // Paper
     }
 
-    public static void queueChunkLoad(World world, ChunkRegionLoader loader, ChunkProviderServer provider, int x, int z, Runnable runnable) {
-        instance.add(new QueuedChunk(x, z, loader, world, provider), runnable);
+    public static void queueChunkLoad(World world, ChunkRegionLoader loader, ChunkProviderServer provider, int x, int z, Runnable callback) {
+        instance.add(new QueuedChunk(x, z, loader, world, provider), callback);
     }
 
     // Abuses the fact that hashCode and equals for QueuedChunk only use world and coords
-    public static void dropQueuedChunkLoad(World world, int x, int z, Runnable runnable) {
-        instance.drop(new QueuedChunk(x, z, null, world, null), runnable);
+    public static void dropQueuedChunkLoad(World world, int x, int z, Runnable callback) {
+        instance.drop(new QueuedChunk(x, z, null, world, null), callback);
     }
 
     public static void adjustPoolSize(int players) {

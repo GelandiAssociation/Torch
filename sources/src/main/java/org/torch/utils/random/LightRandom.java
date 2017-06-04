@@ -25,6 +25,11 @@ public class LightRandom extends Random {
     public LightRandom(final long seed) {
         light.setSeed(seed);
     }
+    
+    @Override
+    public void setSeed(long seed) {
+        light.setSeed(seed);
+    }
 
     @Override
     public int next(final int bits) {

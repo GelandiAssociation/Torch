@@ -117,7 +117,7 @@ public class EntityTracker {
 
             this.c.add(entitytrackerentry);
             this.trackedEntities.a(entity.getId(), entitytrackerentry); // PAIL: put
-            entitytrackerentry.scanPlayers(this.world.players);
+            entitytrackerentry.scanPlayers(this.world.getReactor().players);
         } catch (Throwable throwable) {
             CrashReport crashreport = CrashReport.a(throwable, "Adding entity to track");
             CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Entity To Track");
@@ -181,7 +181,7 @@ public class EntityTracker {
         while (iterator.hasNext()) {
             EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
 
-            entitytrackerentry.track(this.world.players);
+            entitytrackerentry.track(this.world.getReactor().players);
             if (entitytrackerentry.b) {
                 Entity entity = entitytrackerentry.b();
 
@@ -216,7 +216,7 @@ public class EntityTracker {
             EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
 
             if (entitytrackerentry.b() == entityplayer) {
-                entitytrackerentry.scanPlayers(this.world.players);
+                entitytrackerentry.scanPlayers(this.world.getReactor().players);
             } else {
                 entitytrackerentry.updatePlayer(entityplayer);
             }

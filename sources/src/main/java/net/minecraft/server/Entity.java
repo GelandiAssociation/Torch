@@ -53,14 +53,19 @@ public abstract class Entity implements ICommandListener {
         return tag.hasKey("Bukkit.updateLevel") && tag.getInt("Bukkit.updateLevel") >= level;
     }
 
-    protected volatile CraftEntity bukkitEntity;
-
     EntityTrackerEntry tracker; // Paper
+    
+    protected volatile CraftEntity bukkitEntity;
+    // Double-check for thread safe
     public CraftEntity getBukkitEntity() {
-        if (bukkitEntity == null) {
-            bukkitEntity = CraftEntity.getEntity(world.getServer(), this);
+        CraftEntity bukkit = bukkitEntity;
+        if (bukkit == null) {
+            synchronized(this) {
+                bukkit = bukkitEntity;
+                if (bukkit == null) bukkit = bukkitEntity = CraftEntity.getEntity(world.getServer(), this);
+            }
         }
-        return bukkitEntity;
+        return bukkit;
     }
     // CraftBukikt end
 
@@ -1302,12 +1307,13 @@ public abstract class Entity implements ICommandListener {
         return MathHelper.c(f * f + f1 * f1 + f2 * f2);
     }
 
-    public double d(double d0, double d1, double d2) {
-        double d3 = this.locX - d0;
-        double d4 = this.locY - d1;
-        double d5 = this.locZ - d2;
+    public double getOffsetSq(double tX, double tY, double tZ) { return d(tX, tY, tZ); } // OBFHELPER
+    public double d(double tX, double tY, double tZ) {
+        double offsetX = this.locX - tX;
+        double offsetY = this.locY - tY;
+        double offsetZ = this.locZ - tZ;
 
-        return d3 * d3 + d4 * d4 + d5 * d5;
+        return Math.pow(offsetX, 2) + Math.pow(offsetY, 2) + Math.pow(offsetZ, 2);
     }
 
     public double c(BlockPosition blockposition) {
@@ -1329,7 +1335,7 @@ public abstract class Entity implements ICommandListener {
         double d4 = this.locY - d1;
         double d5 = this.locZ - d2;
 
-        return MathHelper.sqrt(d3 * d3 + d4 * d4 + d5 * d5);
+        return MathHelper.sqrt(Math.pow(d3, 2) + Math.pow(d4, 2) + Math.pow(d5, 2));
     }
 
     public double h(Entity entity) {
@@ -1337,7 +1343,7 @@ public abstract class Entity implements ICommandListener {
         double d1 = this.locY - entity.locY;
         double d2 = this.locZ - entity.locZ;
 
-        return d0 * d0 + d1 * d1 + d2 * d2;
+        return Math.pow(d0, 2) + Math.pow(d1, 2) + Math.pow(d2, 2);
     }
 
     public void d(EntityHuman entityhuman) {}

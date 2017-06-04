@@ -1,7 +1,8 @@
 package net.minecraft.server;
 
-import com.destroystokyo.paper.utils.CachedSizeConcurrentLinkedQueue;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Lists;
+
 import java.util.Iterator;
 import java.util.Queue;
 
@@ -252,10 +253,10 @@ public class BlockPosition extends BaseBlockPosition {
         return this.c(baseblockposition);
     }
 
-    public static final class PooledBlockPosition extends MutableBlockPosition {
-        private volatile boolean f;
-        // private static final List<PooledBlockPosition> g = Lists.newArrayList();
-        private static final Queue<PooledBlockPosition> g = new CachedSizeConcurrentLinkedQueue<PooledBlockPosition>();
+    public static final class PooledBlockPosition extends MutableBlockPosition implements AutoCloseable { // Torch - AutoCloseable
+        private boolean f;
+        //private static final List<PooledBlockPosition> g = Lists.newArrayList();
+        private static final Queue<PooledBlockPosition> pooled = Lists.newLinkedList(); // Torch - List -> Queue
         
         private PooledBlockPosition(int i, int j, int k) {
             super(i, j, k);
@@ -271,11 +272,11 @@ public class BlockPosition extends BaseBlockPosition {
         }
 
         public static PooledBlockPosition e(int x, int y, int z) {
-            // List<PooledBlockPosition> list = g;
+            //List<PooledBlockPosition> list = g; // unused
             
-            //synchronized (g) {
-                if (g.size() != 0) {
-                    PooledBlockPosition pooledPosition = g.poll();
+            synchronized (pooled) {
+                if (!pooled.isEmpty()) {
+                    PooledBlockPosition pooledPosition = pooled.poll();
                     
                     if (pooledPosition != null && pooledPosition.f) {
                         pooledPosition.f = false;
@@ -283,22 +284,24 @@ public class BlockPosition extends BaseBlockPosition {
                         return pooledPosition;
                     }
                 }
-            //}
+            }
             
             return new PooledBlockPosition(x, y, z);
         }
 
+        @Override
+        public void close() { free(); } // Torch - AutoCloseable
         public void free() { t(); } // Paper - OBFHELPER
         public void t() {
-            // List<PooledBlockPosition> list = g;
+            //List<PooledBlockPosition> list = g; // unused
 
-            //synchronized (g) {
-                if (g.size() < 100) {
-                    g.add(this);
+            synchronized (pooled) {
+                if (pooled.size() < 100) {
+                    pooled.offer(this);
                 }
                 
                 this.f = true;
-            //}
+            }
         }
 
         public BlockPosition.PooledBlockPosition f(int i, int j, int k) {

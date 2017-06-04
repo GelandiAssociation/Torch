@@ -109,7 +109,7 @@ public class ActivationRange
         maxRange = Math.min( ( world.spigotConfig.viewDistance << 4 ) - 8, maxRange );
 
         Chunk chunk; // Paper
-        for ( EntityHuman player : world.players )
+        for ( EntityHuman player : world.getReactor().players )
         {
 
             player.activatedTick = MinecraftServer.currentTick;
@@ -260,8 +260,8 @@ public class ActivationRange
     public static boolean checkIfActive(Entity entity)
     {
         // Never safe to skip fireworks or entities not yet added to chunk
-        // PAIL: inChunk - boolean under datawatchers
-        if ( !entity.aa || entity instanceof EntityFireworks ) {
+        // PAIL: inAddedToChunk - boolean under datawatchers
+        if ( !entity.isAddedToChunk() || entity instanceof EntityFireworks ) {
             return true;
         }
 

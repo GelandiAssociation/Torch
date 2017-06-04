@@ -1,6 +1,7 @@
 package net.minecraft.server;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -11,7 +12,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import com.koloboke.collect.map.hash.HashObjObjMaps;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Logger;
 import org.torch.api.Async;
+import org.torch.server.Regulator;
+
 import static org.torch.server.TorchServer.logger;
 
 public class JsonList<K, V extends JsonListEntry<K>> {
@@ -35,7 +37,7 @@ public class JsonList<K, V extends JsonListEntry<K>> {
     protected static final Logger a = logger;
     protected final Gson b;
     private final File c;
-    private final Map<String, V> d = HashObjObjMaps.newMutableMap();
+    private final Map<String, V> d = Maps.newConcurrentMap();
     private boolean e = true;
     private static final ParameterizedType f = new ParameterizedType() {
         @Override
@@ -130,8 +132,12 @@ public class JsonList<K, V extends JsonListEntry<K>> {
 
     public void removeExpired() { this.h(); } // OBFHELPER
     private void h() {
-        Iterator<V> iterator = this.d.values().iterator();
-        while (iterator.hasNext()) if (iterator.next().hasExpired()) iterator.remove(); // Torch - slight optimization
+        // Torch start - slight optimization
+        if (this instanceof GameProfileBanList || this instanceof OpList) {
+            Iterator<V> iterator = this.d.values().iterator();
+            while (iterator.hasNext()) if (iterator.next().hasExpired()) iterator.remove();
+        }
+        // Torch end
     }
 
     protected JsonListEntry<K> a(JsonObject jsonobject) {
@@ -145,10 +151,8 @@ public class JsonList<K, V extends JsonListEntry<K>> {
 
     @Async
     public void save() {
-        Collection<V> values = this.d.values();
-
         MCUtil.scheduleAsyncTask(() -> {
-            String jsonString = this.b.toJson(values);
+            String jsonString = this.b.toJson(this.d.values());
             BufferedWriter writer = null;
 
             try {

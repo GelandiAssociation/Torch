@@ -17,6 +17,8 @@ import java.util.Map.Entry;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.torch.api.Async;
+import org.torch.server.Regulator;
 
 public class ServerStatisticManager extends StatisticManager {
 
@@ -26,6 +28,8 @@ public class ServerStatisticManager extends StatisticManager {
     private final Set<Statistic> e = HashObjSets.newMutableSet();
     private int f = -300;
     private boolean g;
+    
+    private static final JsonParser JSON_PARSER = new JsonParser(); // Torch - reuse instance
 
     public ServerStatisticManager(MinecraftServer minecraftserver, File file) {
         this.c = minecraftserver;
@@ -40,7 +44,12 @@ public class ServerStatisticManager extends StatisticManager {
         // Spigot end
     }
 
+    // Torch start
     public void a() {
+        readStatFile();
+    }
+    
+    public void readStatFile() {
         if (this.d.isFile()) {
             try {
                 this.a.clear();
@@ -51,8 +60,8 @@ public class ServerStatisticManager extends StatisticManager {
                 ServerStatisticManager.b.error("Couldn\'t parse statistics file {}", new Object[] { this.d, jsonparseexception});
             }
         }
-
     }
+    // Torch end
 
     public void b() {
         if ( org.spigotmc.SpigotConfig.disableStatSaving ) return; // Spigot
@@ -61,11 +70,10 @@ public class ServerStatisticManager extends StatisticManager {
         } catch (IOException ioexception) {
             ServerStatisticManager.b.error("Couldn\'t save stats", ioexception);
         }
-
     }
 
     @Override
-	public void setStatistic(EntityHuman entityhuman, Statistic statistic, int i) {
+    public void setStatistic(EntityHuman entityhuman, Statistic statistic, int i) {
         if ( org.spigotmc.SpigotConfig.disableStatSaving ) return; // Spigot
         int j = statistic.d() ? this.getStatisticValue(statistic) : 0;
 
@@ -95,8 +103,8 @@ public class ServerStatisticManager extends StatisticManager {
         return hashset;
     }
 
-    public Map<Statistic, StatisticWrapper> a(String s) {
-        JsonElement jsonelement = (new JsonParser()).parse(s);
+    public Map<Statistic, StatisticWrapper> a(String s) { // PAIL: parseStatisticsFile
+        JsonElement jsonelement = JSON_PARSER.parse(s);
 
         if (!jsonelement.isJsonObject()) {
             return HashObjObjMaps.newMutableMap();

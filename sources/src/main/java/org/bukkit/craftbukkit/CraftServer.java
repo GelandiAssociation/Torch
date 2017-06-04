@@ -729,15 +729,15 @@ public final class CraftServer implements Server {
             world.worldData.setDifficulty(difficulty);
             world.setSpawnFlags(monsters, animals);
             if (this.getTicksPerAnimalSpawns() < 0) {
-                world.ticksPerAnimalSpawns = 400;
+                world.getReactor().ticksPerAnimalSpawns = 400;
             } else {
-                world.ticksPerAnimalSpawns = this.getTicksPerAnimalSpawns();
+                world.getReactor().ticksPerAnimalSpawns = this.getTicksPerAnimalSpawns();
             }
 
             if (this.getTicksPerMonsterSpawns() < 0) {
-                world.ticksPerMonsterSpawns = 1;
+                world.getReactor().ticksPerMonsterSpawns = 1;
             } else {
-                world.ticksPerMonsterSpawns = this.getTicksPerMonsterSpawns();
+                world.getReactor().ticksPerMonsterSpawns = this.getTicksPerMonsterSpawns();
             }
             world.spigotConfig.init(); // Spigot
             world.paperConfig.init(); // Paper
@@ -1005,7 +1005,7 @@ public final class CraftServer implements Server {
             return false;
         }
 
-        if (handle.players.size() > 0) {
+        if (handle.getReactor().players.size() > 0) {
             return false;
         }
 

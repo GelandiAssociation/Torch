@@ -1,13 +1,8 @@
 package org.bukkit.event.block;
 
-import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
-import org.bukkit.event.block.Action;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
+import org.torch.event.MutableEvent;
 
 /**
  * Called when a redstone current changes
@@ -20,8 +15,8 @@ public class BlockRedstoneEvent extends BlockEvent {
     
     private static BlockRedstoneEvent instance;
     
-    public static BlockRedstoneEvent requestMutable(final Block block, final int oldCurrent, final int newCurrent) {
-        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Async request mutable event!");
+    public static BlockRedstoneEvent of(final Block block, final int oldCurrent, final int newCurrent) {
+        MutableEvent.init(instance);
         
         if (instance == null) {
             instance = new BlockRedstoneEvent(block, oldCurrent, newCurrent);

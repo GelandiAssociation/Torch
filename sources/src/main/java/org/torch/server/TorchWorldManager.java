@@ -41,10 +41,6 @@ public final class TorchWorldManager implements org.torch.api.IWorldAccess, Torc
         this.world = worldserver;
     }
     
-    /**
-     * Called on all IWorldAccess when an entity is created or loaded.
-     * On server-side worlds, adds the entity to the entity tracker.
-     */
     @Override
     public void onEntityAdded(Entity entity) {
         world.getTracker().track(entity);
@@ -52,10 +48,6 @@ public final class TorchWorldManager implements org.torch.api.IWorldAccess, Torc
         if (entity instanceof EntityPlayer) world.worldProvider.a((EntityPlayer) entity); // PAIL: onPlayerAdded
     }
     
-    /**
-     * Called on all IWorldAccesses when an entity is unloaded or destroyed.
-     * On server-side worlds, removes the entity from the entity tracker.
-     */
     @Override
     public void onEntityRemoved(Entity entity) {
         world.getTracker().untrackEntity(entity);
@@ -76,7 +68,7 @@ public final class TorchWorldManager implements org.torch.api.IWorldAccess, Torc
     }
     
     @Override @Async
-    public void playWorldEventNearbyExpect(EntityHuman expect, int type, BlockPosition position, int data) {
+    public void playWorldEventNearbyExpect(@Nullable EntityHuman expect, int type, BlockPosition position, int data) {
         server.getPlayerList().sendPacketNearby(expect, position.getX(), position.getY(), position.getZ(), 64.0D, this.world.dimension,
                 new PacketPlayOutWorldEvent(type, position, data, false));
     }

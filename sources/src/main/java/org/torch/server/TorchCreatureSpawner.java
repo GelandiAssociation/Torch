@@ -2,8 +2,6 @@ package org.torch.server;
 
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
-
 import javax.annotation.Nullable;
 
 import lombok.Getter;
@@ -39,8 +37,6 @@ public final class TorchCreatureSpawner implements TorchReactor {
     public TorchCreatureSpawner(@Nullable SpawnerCreature legacy) {
         servant = legacy;
     }
-    
-    UUID uuid = UUID.randomUUID();
 
     /** Returns entity count only from chunks being processed in spawnableChunks */
     public int getEntityCount(WorldServer server, Class<?> creatureType) {
@@ -60,7 +56,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
         // Paper - At least until we figure out what is calling this async
         AsyncCatcher.catchOp("check for eligible spawn chunks");
 
-        if ((!spawnHostileCreatures && !spawnPassiveCreatures) || world.players.isEmpty()) return 0;
+        if ((!spawnHostileCreatures && !spawnPassiveCreatures) || world.getReactor().players.isEmpty()) return 0;
 
         this.spawnableChunks.clear();
         int foundChunks = 0;
@@ -69,9 +65,11 @@ public final class TorchCreatureSpawner implements TorchReactor {
             RANGE = world.spigotConfig.mobSpawnRange;
             RANGE = (RANGE > world.spigotConfig.viewDistance) ? world.spigotConfig.viewDistance : RANGE;
             RANGE = (RANGE > 8) ? 8 : RANGE;
+            
+            CHUNKS_PER_PLAYER = (RANGE * 2 + 1) * (RANGE * 2 + 1);
         }
 
-        for (final EntityHuman player : world.players) {
+        for (final EntityHuman player : world.getReactor().players) {
             if (player.isSpectator() || !player.affectsSpawning) continue;
 
             final int centerX = MathHelper.floor(player.locX / 16.0D);
@@ -212,8 +210,8 @@ public final class TorchCreatureSpawner implements TorchReactor {
 
     public static BlockPosition createRandomPosition(World world, int chunkX, int chunkZ) {
         Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-        int x = chunkX * 16 + world.random.nextInt(16);
-        int z = chunkZ * 16 + world.random.nextInt(16);
+        int x = chunkX << 4 + world.random.nextInt(16);
+        int z = chunkZ << 4 + world.random.nextInt(16);
         final int y = world.random.nextInt(chunk == null ? world.getActualWorldHeight() : chunk.findFilledTop() + 16 - 1);
 
         return new BlockPosition(x, y, z);

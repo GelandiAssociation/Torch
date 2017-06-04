@@ -68,7 +68,7 @@ public class EntityLightning extends EntityWeather {
             // this.world.a((EntityHuman) null, this.locX, this.locY, this.locZ, SoundEffects.dv, SoundCategory.WEATHER, 10000.0F, 0.8F + this.random.nextFloat() * 0.2F);
             float pitch = 0.8F + this.random.nextFloat() * 0.2F;
             int viewDistance = ((WorldServer) this.world).getServer().getViewDistance() * 16;
-            for (EntityPlayer player : (List<EntityPlayer>) (List) this.world.players) {
+            for (EntityPlayer player : (List<EntityPlayer>) (List) this.world.getReactor().players) {
                 double deltaX = this.locX - player.locX;
                 double deltaZ = this.locZ - player.locZ;
                 double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;

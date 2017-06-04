@@ -47,7 +47,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.spigotmc.SpigotConfig;
 import org.torch.api.Async;
 import org.torch.api.TorchReactor;
@@ -60,7 +59,7 @@ public final class TorchUserCache implements TorchReactor {
     /** The legacy */
     private final UserCache servant;
     
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+    private static final ThreadLocal<SimpleDateFormat> DATE_FORMATS = new ThreadLocal<SimpleDateFormat>();
     
     // Used to reduce date create
     private final static long DATE_WARP_INTERVAL = TimeUnit.MILLISECONDS.convert(9, TimeUnit.MINUTES);
@@ -80,6 +79,21 @@ public final class TorchUserCache implements TorchReactor {
      * UserCache file
      * */
     private final File usercacheFile;
+    
+    /**
+     * Return a thread-safe @SimpleDateFormat instance, be used to format expire date
+     */
+    public static SimpleDateFormat dateFormat() {
+        SimpleDateFormat format = DATE_FORMATS.get();
+        
+        if (format == null) {
+            format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+            DATE_FORMATS.set(format);
+            return format;
+        }
+        
+        return format;
+    }
     
     public static final ParameterizedType type = new ParameterizedType() {
         @Override
@@ -195,7 +209,7 @@ public final class TorchUserCache implements TorchReactor {
         String keyUsername = username.toLowerCase(Locale.ROOT);
         UserCacheEntry cachedEntry = caches.getIfPresent(keyUsername);
         
-        if (cachedEntry == null) {
+        if (cachedEntry == null || isExpired(cachedEntry)) {
             cachedEntry = putCache(keyUsername);
         }
         
@@ -245,7 +259,7 @@ public final class TorchUserCache implements TorchReactor {
     
     public void load() {
         BufferedReader reader = null;
-
+        
         try {
             reader = Files.newReader(usercacheFile, Charsets.UTF_8);
             List<UserCacheEntry> entries = this.gson.fromJson(reader, type);
@@ -254,14 +268,13 @@ public final class TorchUserCache implements TorchReactor {
             
             if (entries != null) {
                 for (UserCacheEntry entry : Lists.reverse(entries)) {
-                    if (entry != null && !isExpired(entry) && !StringUtils.isBlank(entry.profile.getName())) {
+                    if (entry != null) {
                         caches.put(entry.profile.getName().toLowerCase(Locale.ROOT), entry);
                     }
                 }
                 
-                this.save();
+                this.save(false);
             }
-            
         } catch (FileNotFoundException e) {
             ;
         } catch (JsonSyntaxException e) {
@@ -273,7 +286,7 @@ public final class TorchUserCache implements TorchReactor {
             IOUtils.closeQuietly(reader);
         }
     }
-    
+     
     @Async
     public void save() {
         save(true);
@@ -334,7 +347,7 @@ public final class TorchUserCache implements TorchReactor {
 
             jsonData.addProperty("name", entry.profile.getName());
             jsonData.addProperty("uuid", uuid == null ? "" : uuid.toString());
-            jsonData.addProperty("expiresOn", DATE_FORMAT.format(entry.expireDate));
+            jsonData.addProperty("expiresOn", dateFormat().format(entry.expireDate));
             
             return jsonData;
         }
@@ -356,7 +369,7 @@ public final class TorchUserCache implements TorchReactor {
             Date date = null;
             if (expireDate != null) {
                 try {
-                    date = DATE_FORMAT.parse(expireDate.getAsString());
+                    date = dateFormat().parse(expireDate.getAsString());
                 } catch (ParseException ex) {
                     ;
                 }

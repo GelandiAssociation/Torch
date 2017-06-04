@@ -3,6 +3,7 @@ package org.torch.server;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.koloboke.collect.map.hash.HashObjObjMaps;
 import com.koloboke.collect.set.hash.HashObjSets;
 import com.mojang.authlib.GameProfile;
@@ -163,7 +164,7 @@ public final class TorchPlayerList implements TorchReactor {
         bannedIPs = new IpBanList(IP_BANS_FILE);
         operators = new OpList(OPS_FILE);
         whitelist = new WhiteList(WHITELIST_FILE);
-        playerStatFiles = HashObjObjMaps.newMutableMap();
+        playerStatFiles = Maps.newConcurrentMap();
 
         /**
          * Dedicated PlayerList
@@ -377,7 +378,7 @@ public final class TorchPlayerList implements TorchReactor {
         // Update player stats
         entityplayer.getStatisticManager().d(); // mark all dirty
         entityplayer.getStatisticManager().updateStatistics(entityplayer);
-
+        
         this.sendScoreboard((ScoreboardServer) worldserver.getScoreboard(), entityplayer);
         this.server.refreshStatusNextTick();
 
@@ -410,7 +411,7 @@ public final class TorchPlayerList implements TorchReactor {
             // Read vehicle entity
             Entity entity = ChunkRegionLoader.a(rootVehicle.getCompound("Entity"), worldserver, true);
 
-            if (entity != null) { // TODO: need go deeper
+            if (entity != null) {
                 // Read UUID from 'Attach' compound
                 UUID uuid = rootVehicle.a("Attach");
 
@@ -517,7 +518,7 @@ public final class TorchPlayerList implements TorchReactor {
         joinedPlayer.sentListPacket = true;
 
         // Only add if the player wasn't moved in the event
-        if (joinedPlayer.world == world && !world.players.contains(joinedPlayer)) {
+        if (joinedPlayer.world == world && !world.getReactor().players.contains(joinedPlayer)) {
             world.addEntity(joinedPlayer);
             this.preparePlayer(joinedPlayer, (WorldServer) null);
         }
@@ -1274,28 +1275,28 @@ public final class TorchPlayerList implements TorchReactor {
             if (team != null) scoreboard.removeTeam(team);
         }
     }
-
+    
     public ServerStatisticManager getOrCreatePlayerStatsFile(EntityHuman player) {
         UUID uuid = player.getUniqueID();
         ServerStatisticManager statManager = uuid == null ? null : this.playerStatFiles.get(uuid);
-
+        
         if (statManager == null) {
             File worldStatDirectory = new File(this.server.getWorldServer(0).getDataManager().getDirectory(), "stats");
             File playerStatFile = new File(worldStatDirectory, uuid + ".json");
-
+            
             if (!playerStatFile.exists()) {
                 File playerStatFileLegacy = new File(worldStatDirectory, player.getName() + ".json");
-
+                
                 if (playerStatFileLegacy.exists() && playerStatFileLegacy.isFile()) {
                     playerStatFileLegacy.renameTo(playerStatFile);
                 }
             }
-
+            
             statManager = new ServerStatisticManager(getMinecraftServer(), playerStatFile);
-            statManager.a(); // PAIL: Read the stat files
+            statManager.readStatFile();
             this.playerStatFiles.put(uuid, statManager);
         }
-
+        
         return statManager;
     }
 
@@ -1381,7 +1382,7 @@ public final class TorchPlayerList implements TorchReactor {
         this.getServer().saveProperties();
     }
     
-    /** Get player's name by uuid */
+    /** Get player's name by uuid, the player must online */
     @Nullable
     public String uuidToUsername(UUID uuid) {
         return this.uuidToPlayerMap.get(uuid).getName();

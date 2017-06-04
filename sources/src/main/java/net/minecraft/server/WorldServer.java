@@ -33,7 +33,7 @@ import org.torch.server.TorchServer;
 public class WorldServer extends World implements IAsyncTaskHandler {
 
     private static final Logger a = LogManager.getLogger();
-    boolean stopPhysicsEvent = false; // Paper
+    public boolean stopPhysicsEvent = false; // Paper
     private final TorchServer server;
     public EntityTracker tracker;
     private final PlayerChunkMap manager;
@@ -57,7 +57,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
     public WorldServer(MinecraftServer minecraftserver, IDataManager idatamanager, WorldData worlddata, int i, MethodProfiler methodprofiler, org.bukkit.World.Environment env, org.bukkit.generator.ChunkGenerator gen) {
         super(idatamanager, worlddata, DimensionManager.a(env.getId()).d(), methodprofiler, false, gen, env);
         this.dimension = i;
-        this.pvpMode = minecraftserver.getPVP();
+        this.getReactor().pvpMode = minecraftserver.getPVP();
         worlddata.world = this;
         // CraftBukkit end
         this.server = minecraftserver.getReactor();
@@ -65,6 +65,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         this.manager = new PlayerChunkMap(this, spigotConfig.viewDistance); // Spigot
         this.worldProvider.a(this);
         this.chunkProvider = this.n();
+        this.getReactor().setChunkProvider(chunkProvider); // Port
         this.portalTravelAgent = new org.bukkit.craftbukkit.CraftTravelAgent(this); // CraftBukkit
         this.H();
         this.I();
@@ -114,8 +115,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         }
 
         // CraftBukkit start
-        if (generator != null) {
-            getWorld().getPopulators().addAll(generator.getDefaultPopulators(getWorld()));
+        if (getReactor().generator != null) {
+            getWorld().getPopulators().addAll(getReactor().generator.getDefaultPopulators(getWorld()));
         }
         // CraftBukkit end
 
@@ -197,8 +198,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
     }
 
     private boolean canSpawn(int x, int z) {
-        if (this.generator != null) {
-            return this.generator.canSpawn(this.getWorld(), x, z);
+        if (this.getReactor().generator != null) {
+            return this.getReactor().generator.canSpawn(this.getWorld(), x, z);
         } else {
             return this.worldProvider.canSpawn(x, z);
         }
@@ -226,9 +227,9 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         this.methodProfiler.a("mobSpawner");
         // CraftBukkit start - Only call spawner if we have players online and the world allows for mobs or animals
         long time = this.worldData.getTime();
-        if (this.getGameRules().getBoolean("doMobSpawning") && this.worldData.getType() != WorldType.DEBUG_ALL_BLOCK_STATES && (this.allowMonsters || this.allowAnimals) && (this instanceof WorldServer && this.players.size() > 0)) {
+        if (this.getGameRules().getBoolean("doMobSpawning") && this.worldData.getType() != WorldType.DEBUG_ALL_BLOCK_STATES && (this.allowMonsters || this.allowAnimals) && (this instanceof WorldServer && this.getReactor().players.size() > 0)) {
             timings.mobSpawn.startTiming(); // Spigot
-            this.spawnerCreature.a(this, this.allowMonsters && (this.ticksPerMonsterSpawns != 0 && time % this.ticksPerMonsterSpawns == 0L), this.allowAnimals && (this.ticksPerAnimalSpawns != 0 && time % this.ticksPerAnimalSpawns == 0L), this.worldData.getTime() % 400L == 0L);
+            this.spawnerCreature.a(this, this.allowMonsters && (this.getReactor().ticksPerMonsterSpawns != 0 && time % this.getReactor().ticksPerMonsterSpawns == 0L), this.allowAnimals && (this.getReactor().ticksPerAnimalSpawns != 0 && time % this.getReactor().ticksPerAnimalSpawns == 0L), this.worldData.getTime() % 400L == 0L);
             timings.mobSpawn.stopTiming(); // Spigot
             // CraftBukkit end
         }
@@ -296,10 +297,10 @@ public class WorldServer extends World implements IAsyncTaskHandler {
     @Override
     public void everyoneSleeping() {
         this.O = false;
-        if (!this.players.isEmpty()) {
+        if (!this.getReactor().players.isEmpty()) {
             int i = 0;
             int j = 0;
-            Iterator iterator = this.players.iterator();
+            Iterator iterator = this.getReactor().players.iterator();
 
             while (iterator.hasNext()) {
                 EntityHuman entityhuman = (EntityHuman) iterator.next();
@@ -311,14 +312,14 @@ public class WorldServer extends World implements IAsyncTaskHandler {
                 }
             }
 
-            this.O = j > 0 && j >= this.players.size() - i;
+            this.O = j > 0 && j >= this.getReactor().players.size() - i;
         }
 
     }
 
     protected void f() {
         this.O = false;
-        Iterator iterator = this.players.iterator();
+        Iterator iterator = this.getReactor().players.iterator();
 
         while (iterator.hasNext()) {
             EntityHuman entityhuman = (EntityHuman) iterator.next();
@@ -355,7 +356,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
 
     public boolean everyoneDeeplySleeping() {
         if (this.O) {
-            Iterator iterator = this.players.iterator();
+            Iterator iterator = this.getReactor().players.iterator();
 
             // CraftBukkit - This allows us to assume that some people are in bed but not really, allowing time to pass in spite of AFKers
             boolean foundActualSleepers = false;
@@ -389,9 +390,9 @@ public class WorldServer extends World implements IAsyncTaskHandler {
 
     protected void i() {
         this.methodProfiler.a("playerCheckLight");
-        if (spigotConfig.randomLightUpdates && !this.players.isEmpty()) { // Spigot
-            int i = this.random.nextInt(this.players.size());
-            EntityHuman entityhuman = this.players.get(i);
+        if (spigotConfig.randomLightUpdates && !this.getReactor().players.isEmpty()) { // Spigot
+            int i = this.random.nextInt(this.getReactor().players.size());
+            EntityHuman entityhuman = Lists.newArrayList(getReactor().players).get(i); // TODO
             int j = MathHelper.floor(entityhuman.locX) + this.random.nextInt(11) - 5;
             int k = MathHelper.floor(entityhuman.locY) + this.random.nextInt(11) - 5;
             int l = MathHelper.floor(entityhuman.locZ) + this.random.nextInt(11) - 5;
@@ -621,7 +622,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
 
     @Override
     public void tickEntities() {
-        if (false && this.players.isEmpty()) { // CraftBukkit - this prevents entity cleanup, other issues on servers with no players
+        if (false && this.getReactor().players.isEmpty()) { // CraftBukkit - this prevents entity cleanup, other issues on servers with no players
             if (this.emptyTime++ >= 300) {
                 return;
             }
@@ -639,8 +640,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         super.l();
         this.methodProfiler.c("players");
 
-        for (int i = 0; i < this.players.size(); ++i) {
-            Entity entity = this.players.get(i);
+        for (Entity entity : this.getReactor().players) {
             Entity entity1 = entity.bB();
 
             if (entity1 != null) {
@@ -846,8 +846,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         // CraftBukkit start
         org.bukkit.craftbukkit.generator.InternalChunkGenerator gen;
 
-        if (this.generator != null) {
-            gen = new org.bukkit.craftbukkit.generator.CustomChunkGenerator(this, this.getSeed(), this.generator);
+        if (this.getReactor().generator != null) {
+            gen = new org.bukkit.craftbukkit.generator.CustomChunkGenerator(this, this.getSeed(), this.getReactor().generator);
         } else if (this.worldProvider instanceof WorldProviderHell) {
             gen = new org.bukkit.craftbukkit.generator.NetherChunkGenerator(this, this.getSeed());
         } else if (this.worldProvider instanceof WorldProviderTheEnd) {
@@ -955,9 +955,9 @@ public class WorldServer extends World implements IAsyncTaskHandler {
             int k = 8;
 
             // CraftBukkit start
-            if (this.generator != null) {
+            if (this.getReactor().generator != null) {
                 Random rand = new Random(this.getSeed());
-                org.bukkit.Location spawn = this.generator.getFixedSpawnLocation(this.getWorld(), rand);
+                org.bukkit.Location spawn = this.getReactor().generator.getFixedSpawnLocation(this.getWorld(), rand);
 
                 if (spawn != null) {
                     if (spawn.getWorld() != this.getWorld()) {
@@ -1236,7 +1236,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
             explosion.clearBlocks();
         }
 
-        Iterator iterator = this.players.iterator();
+        Iterator iterator = this.getReactor().players.iterator();
 
         while (iterator.hasNext()) {
             EntityHuman entityhuman = (EntityHuman) iterator.next();
@@ -1323,18 +1323,27 @@ public class WorldServer extends World implements IAsyncTaskHandler {
             this.server.getPlayerList().sendAll(new PacketPlayOutGameStateChange(8, this.q));
         }
         // */
-        if (flag != this.W()) {
+        if (flag != this.W()) { // PAIL: W -> isRaining
             // Only send weather packets to those affected
-            for (int i = 0; i < this.players.size(); ++i) {
-                if (((EntityPlayer) this.players.get(i)).world == this) {
-                    ((EntityPlayer) this.players.get(i)).setPlayerWeather((!flag ? WeatherType.DOWNFALL : WeatherType.CLEAR), false);
+            
+            // Torch start - remove dupe loop
+            for (EntityHuman player : getReactor().players) {
+                if (((EntityPlayer) player).world == this) {
+                    ((EntityPlayer) player).tickWeather(); // Moved from World
+                    ((EntityPlayer) player).setPlayerWeather((!flag ? WeatherType.DOWNFALL : WeatherType.CLEAR), false);
+                    
+                    ((EntityPlayer) player).updateWeather(this.n, this.o, this.p, this.q);
                 }
             }
-        }
-        for (int i = 0; i < this.players.size(); ++i) {
-            if (((EntityPlayer) this.players.get(i)).world == this) {
-                ((EntityPlayer) this.players.get(i)).updateWeather(this.n, this.o, this.p, this.q);
+        } else {
+            for (EntityHuman player : getReactor().players) {
+                if (((EntityPlayer) player).world == this) {
+                    ((EntityPlayer) player).tickWeather(); // Moved from World
+                    
+                    ((EntityPlayer) player).updateWeather(this.n, this.o, this.p, this.q);
+                }
             }
+            // Torch end
         }
         // CraftBukkit end
 
@@ -1375,8 +1384,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         // CraftBukkit end
         PacketPlayOutWorldParticles packetplayoutworldparticles = new PacketPlayOutWorldParticles(enumparticle, flag, (float) d0, (float) d1, (float) d2, (float) d3, (float) d4, (float) d5, (float) d6, i, aint);
 
-        for (int j = 0; j < this.players.size(); ++j) {
-            EntityPlayer entityplayer = (EntityPlayer) this.players.get(j);
+        for (EntityHuman player : getReactor().players) {
+            EntityPlayer entityplayer = (EntityPlayer) player;
             if (sender != null && !entityplayer.getBukkitEntity().canSee(sender.getBukkitEntity())) continue; // CraftBukkit
             BlockPosition blockposition = entityplayer.getChunkCoordinates();
             double d7 = blockposition.distanceSquared(d0, d1, d2);

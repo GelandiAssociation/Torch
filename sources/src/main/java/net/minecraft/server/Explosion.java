@@ -31,7 +31,7 @@ public class Explosion {
     private final double posZ;
     public final Entity source;
     private final float size;
-    /** A list of ChunkPositions of blocks affected by this explosion */
+    /** blocksToDestroy */
     private final Set<BlockPosition> blocks = HashObjSets.newMutableSet(); // Torch - ArrayList -> HashSet
     /** playerKnockbackMap */
     private final Map<EntityHuman, Vec3D> k = HashObjObjMaps.newMutableMap();
@@ -56,42 +56,43 @@ public class Explosion {
     public void a() {
         if (this.size < 0.1F) return; // CraftBukkit
         
-        for (int k = 0; k < 16; ++k) {
-            for (int i = 0; i < 16; ++i) {
-                for (int j = 0; j < 16; ++j) {
-                    if (k == 0 || k == 15 || i == 0 || i == 15 || j == 0 || j == 15) {
-                        double d0 = k / 15.0F * 2.0F - 1.0F;
-                        double d1 = i / 15.0F * 2.0F - 1.0F;
-                        double d2 = j / 15.0F * 2.0F - 1.0F;
-                        double d3 = Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2);
+        for (int x = 0; x < 16; x++) {
+            for (int y = 0; y < 16; y++) {
+                for (int z = 0; z < 16; z++) {
+                    if (x == 0 || x == 15 || y == 0 || y == 15 || z == 0 || z == 15) {
+                        double stepX = x / 15.0F * 2.0F - 1.0F;
+                        double stepY = y / 15.0F * 2.0F - 1.0F;
+                        double stepZ = z / 15.0F * 2.0F - 1.0F;
                         
-                        d0 /= d3;
-                        d1 /= d3;
-                        d2 /= d3;
+                        double step = Math.sqrt(stepX * stepX + stepY * stepY + stepZ * stepZ);
+                        stepX /= step;
+                        stepY /= step;
+                        stepZ /= step;
                         
-                        double d4 = this.posX;
-                        double d5 = this.posY;
-                        double d6 = this.posZ;
+                        double blockX = this.posX;
+                        double blockY = this.posY;
+                        double blockZ = this.posZ;
                         
-                        float rate = this.size * (0.7F + this.world.random.nextFloat() * 0.6F);
-                        for (; rate > 0.0F; rate -= 0.22500001F) {
-                            BlockPosition position = new BlockPosition(d4, d5, d6);
-                            IBlockData iblockdata = this.world.getType(position);
+                        float strength = this.size * (0.7F + this.world.random.nextFloat() * 0.6F);
+                        
+                        for (; strength > 0.0F; strength -= 0.22500001F) {
+                            BlockPosition pos = new BlockPosition(blockX, blockY, blockZ);
+                            IBlockData iblockdata = this.world.getType(pos);
                             
                             if (iblockdata.getMaterial() != Material.AIR) {
-                                float f2 = this.source != null ? this.source.a(this, this.world, position, iblockdata) : iblockdata.getBlock().a((Entity) null);
+                                float resistance = this.source != null ? this.source.a(this, this.world, pos, iblockdata) : iblockdata.getBlock().a((Entity) null);
                                 
-                                rate -= (f2 + 0.3F) * 0.3F;
+                                strength -= (resistance + 0.3F) * 0.3F;
                             }
                             
                             // CraftBukkit - don't wrap explosions
-                            if (rate > 0.0F && (this.source == null || this.source.a(this, this.world, position, iblockdata, rate)) && position.getY() < 256 && position.getY() >= 0) {
-                                blocks.add(position);
+                            if (strength > 0.0F && (this.source == null || this.source.a(this, this.world, pos, iblockdata, strength)) && pos.getY() < 256 && pos.getY() >= 0) {
+                                blocks.add(pos);
                             }
                             
-                            d4 += d0 * 0.30000001192092896D;
-                            d5 += d1 * 0.30000001192092896D;
-                            d6 += d2 * 0.30000001192092896D;
+                            blockX += stepX * 0.30000001192092896D;
+                            blockY += stepY * 0.30000001192092896D;
+                            blockZ += stepZ * 0.30000001192092896D;
                         }
                     }
                 }
@@ -120,28 +121,28 @@ public class Explosion {
         
         for (int index = 0, size = living.size(); index < size; index++) {
             Entity entity = living.get(index);
-            
+
             if (entity.bt()) continue; // PAIL: isImmuneToExplosions()
             
-            double d7 = entity.e(this.posX, this.posY, this.posZ) / expandSize; // PAIL: e -> getDistance
+            double dist = entity.e(this.posX, this.posY, this.posZ) / expandSize; // PAIL: e -> getDistance
             
-            if (d7 <= 1.0D) {
-                double offsetX = entity.locX - this.posX;
-                double offsetY = entity.locY + entity.getHeadHeight() - this.posY;
-                double offsetZ = entity.locZ - this.posZ;
-                double norm = MathHelper.sqrt(offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ);
+            if (dist <= 1.0D) {
+                double distX = entity.locX - this.posX;
+                double distY = entity.locY + entity.getHeadHeight() - this.posY;
+                double distZ = entity.locZ - this.posZ;
+                double norm = MathHelper.sqrt(distX * distX + distY * distY + distZ * distZ);
                 
                 if (norm != 0.0D) {
-                    offsetX /= norm;
-                    offsetY /= norm;
-                    offsetZ /= norm;
+                    distX /= norm;
+                    distY /= norm;
+                    distZ /= norm;
                     double blockDensity = this.getBlockDensity(vec3D, entity.getBoundingBox()); // Paper - Optimize explosions
-                    double d13 = (1.0D - d7) * blockDensity;
+                    double strength = (1.0D - dist) * blockDensity;
                     
                     // CraftBukkit start
                     CraftEventFactory.entityDamage = source;
                     entity.forceExplosionKnockback = false;
-                    boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), ((int) ((d13 * d13 + d13) / 2.0D * 7.0D * expandSize + 1.0D)));
+                    boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), ((int) ((strength * strength + strength) / 2.0D * 7.0D * expandSize + 1.0D)));
                     CraftEventFactory.entityDamage = null;
                     
                     if (!wasDamaged && !(entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock) && !entity.forceExplosionKnockback) {
@@ -149,32 +150,26 @@ public class Explosion {
                     }
                     // CraftBukkit end
                     
-                    double damageReduction = d13;
+                    double damageReduction = 0;
                     if (entity instanceof EntityLiving) {
-                        damageReduction = entity instanceof EntityHuman && world.paperConfig.disableExplosionKnockback ? 0 : EnchantmentProtection.a((EntityLiving) entity, d13); // Paper - Disable explosion knockback
+                        damageReduction = entity instanceof EntityHuman && world.paperConfig.disableExplosionKnockback ? 0 : EnchantmentProtection.a((EntityLiving) entity, strength); // Paper - Disable explosion knockback
                     }
                     
-                    // Paper start - Fix cannons
-                    /* entity.motX += d8 * d14;
-                    entity.motY += d9 * d14;
-                    entity.motZ += d10 * d14; */
-                    
-                    // This impulse method sets the dirty flag, so clients will get an immediate velocity update
-                    entity.addVelocity(offsetX * damageReduction, offsetY * damageReduction, offsetZ * damageReduction);
-                    // Paper end
+                    // Paper - This impulse method sets the dirty flag, so clients will get an immediate velocity update
+                    entity.addVelocity(distX * damageReduction, distY * damageReduction, distZ * damageReduction);
                     
                     if (entity instanceof EntityHuman) {
                         EntityHuman entityhuman = (EntityHuman) entity;
 
                         if (!entityhuman.isSpectator() && (!entityhuman.z() && !world.paperConfig.disableExplosionKnockback || !entityhuman.abilities.isFlying)) { // Paper - Disable explosion knockback
-                            this.k.put(entityhuman, new Vec3D(offsetX * d13, offsetY * d13, offsetZ * d13));
+                            this.k.put(entityhuman, new Vec3D(distX * strength, distY * strength, distZ * strength));
                         }
                     }
                 }
                 
             }
         }
-
+        
     }
 
     /**
@@ -240,33 +235,33 @@ public class Explosion {
                 Block block = this.world.getType(coords).getBlock();
                 
                 if (spawnParticles) {
-                    double randomX = coords.getX() + this.world.random.nextFloat();
-                    double randomY = coords.getY() + this.world.random.nextFloat();
-                    double randomZ = coords.getZ() + this.world.random.nextFloat();
-                    double d3 = randomX - this.posX;
-                    double d4 = randomY - this.posY;
-                    double d5 = randomZ - this.posZ;
-                    double d6 = MathHelper.sqrt(d3 * d3 + d4 * d4 + d5 * d5);
+                    double x = coords.getX() + this.world.random.nextFloat();
+                    double y = coords.getY() + this.world.random.nextFloat();
+                    double z = coords.getZ() + this.world.random.nextFloat();
+                    double distX = x - this.posX;
+                    double distY = y - this.posY;
+                    double distZ = z - this.posZ;
+                    double dist = MathHelper.sqrt(distX * distX + distY * distY + distZ * distZ);
                     
-                    d3 /= d6;
-                    d4 /= d6;
-                    d5 /= d6;
-                    double d7 = 0.5D / (d6 / this.size + 0.1D);
-
-                    d7 *= this.world.random.nextFloat() * this.world.random.nextFloat() + 0.3F;
-                    d3 *= d7;
-                    d4 *= d7;
-                    d5 *= d7;
-                    this.world.addParticle(EnumParticle.EXPLOSION_NORMAL, (randomX + this.posX) / 2.0D, (randomY + this.posY) / 2.0D, (randomZ + this.posZ) / 2.0D, d3, d4, d5, new int[0]);
-                    this.world.addParticle(EnumParticle.SMOKE_NORMAL, randomX, randomY, randomZ, d3, d4, d5, new int[0]);
+                    distX /= dist;
+                    distY /= dist;
+                    distZ /= dist;
+                    
+                    double distScale = 0.5D / (dist / this.size + 0.1D);
+                    distScale *= this.world.random.nextFloat() * this.world.random.nextFloat() + 0.3F;
+                    distX *= distScale;
+                    distY *= distScale;
+                    distZ *= distScale;
+                    
+                    this.world.addParticle(EnumParticle.EXPLOSION_NORMAL, (x + this.posX) / 2.0D, (y + this.posY) / 2.0D, (z + this.posZ) / 2.0D, distX, distY, distZ, new int[0]);
+                    this.world.addParticle(EnumParticle.SMOKE_NORMAL, x, y, z, distX, distY, distZ, new int[0]);
                 }
-
+                
                 if (block.material != Material.AIR) {
-                    if (block.a(this)) {
-                        // CraftBukkit - add yield
+                    if (block.a(this)) { // PAIL: canDropFromExplosion
                         block.dropNaturally(this.world, coords, this.world.getType(coords), yield, 0);
                     }
-
+                    
                     this.world.setTypeAndData(coords, Blocks.AIR.getBlockData(), 3);
                     block.wasExploded(this.world, coords, this);
                 }
@@ -323,16 +318,16 @@ public class Explosion {
             return this.world.a(vec3d, aabb);
         }
         CacheKey key = new CacheKey(this, aabb);
-        Float blockDensity = this.world.explosionDensityCache.get(key);
+        Float blockDensity = this.world.getReactor().explosionDensityCache.get(key);
         if (blockDensity == null) {
             blockDensity = this.world.a(vec3d, aabb);
-            this.world.explosionDensityCache.put(key, blockDensity);
+            this.world.getReactor().explosionDensityCache.put(key, blockDensity);
         }
 
         return blockDensity;
     }
 
-    static final class CacheKey {
+    public static final class CacheKey {
         private final World world;
         private final double posX, posY, posZ;
         private final double minX, minY, minZ;

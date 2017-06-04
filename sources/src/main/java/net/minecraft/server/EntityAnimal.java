@@ -92,7 +92,7 @@ public abstract class EntityAnimal extends EntityAgeable implements IAnimal {
     }
 
     @Override
-	protected boolean isTypeNotPersistent() {
+    protected boolean isTypeNotPersistent() {
         return false;
     }
 

@@ -9,7 +9,7 @@ import org.torch.server.TorchNavigationListener;
 public class NavigationListener implements IWorldAccess, org.torch.api.TorchServant {
     @Getter private final TorchNavigationListener reactor;
 
-    // private final List<NavigationAbstract> a;
+    //private final List<NavigationAbstract> a; // List -> Map
 
     public NavigationListener() {
         reactor = new TorchNavigationListener(this);

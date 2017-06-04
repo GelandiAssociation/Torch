@@ -29,7 +29,7 @@ public class VillageSiege {
             if (this.c == 0) {
                 float f = this.a.c(0.0F);
 
-                if ((double) f < 0.5D || (double) f > 0.501D) {
+                if (f < 0.5D || f > 0.501D) {
                     return;
                 }
 
@@ -66,17 +66,13 @@ public class VillageSiege {
     }
 
     private boolean b() {
-        List list = this.a.players;
-        Iterator iterator = list.iterator();
-
-        while (iterator.hasNext()) {
-            EntityHuman entityhuman = (EntityHuman) iterator.next();
-
+        
+        for (EntityHuman entityhuman : this.a.getReactor().players) {
             if (!entityhuman.isSpectator()) {
                 this.f = this.a.ai().getClosestVillage(new BlockPosition(entityhuman), 1);
                 if (this.f != null && this.f.c() >= 10 && this.f.d() >= 20 && this.f.e() >= 20) {
                     BlockPosition blockposition = this.f.a();
-                    float f = (float) this.f.b();
+                    float f = this.f.b();
                     boolean flag = false;
                     int i = 0;
 
@@ -84,9 +80,9 @@ public class VillageSiege {
                         if (i < 10) {
                             float f1 = this.a.random.nextFloat() * 6.2831855F;
 
-                            this.g = blockposition.getX() + (int) ((double) (MathHelper.cos(f1) * f) * 0.9D);
+                            this.g = blockposition.getX() + (int) (MathHelper.cos(f1) * f * 0.9D);
                             this.h = blockposition.getY();
-                            this.i = blockposition.getZ() + (int) ((double) (MathHelper.sin(f1) * f) * 0.9D);
+                            this.i = blockposition.getZ() + (int) (MathHelper.sin(f1) * f * 0.9D);
                             flag = false;
                             Iterator iterator1 = this.a.ai().getVillages().iterator();
 
@@ -121,7 +117,7 @@ public class VillageSiege {
                 }
             }
         }
-
+        
         return false;
     }
 
@@ -157,7 +153,7 @@ public class VillageSiege {
             BlockPosition blockposition1 = blockposition.a(this.a.random.nextInt(16) - 8, this.a.random.nextInt(6) - 3, this.a.random.nextInt(16) - 8);
 
             if (this.f.a(blockposition1) && SpawnerCreature.a(EntityInsentient.EnumEntityPositionType.ON_GROUND, this.a, blockposition1)) {
-                return new Vec3D((double) blockposition1.getX(), (double) blockposition1.getY(), (double) blockposition1.getZ());
+                return new Vec3D(blockposition1.getX(), blockposition1.getY(), blockposition1.getZ());
             }
         }
 

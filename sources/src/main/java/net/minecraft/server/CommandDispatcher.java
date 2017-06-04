@@ -75,7 +75,7 @@ public class CommandDispatcher extends CommandHandler implements ICommandDispatc
         } else {
             this.a((new CommandPublish()));
         }
-
+        
         CommandAbstract.a(this);
     }
 

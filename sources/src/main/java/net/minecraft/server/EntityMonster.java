@@ -10,12 +10,12 @@ public abstract class EntityMonster extends EntityCreature implements IMonster {
     }
 
     @Override
-	public SoundCategory bC() {
+    public SoundCategory bC() {
         return SoundCategory.HOSTILE;
     }
 
     @Override
-	public void n() {
+    public void n() {
         this.cd();
         float f = this.e(1.0F);
 
@@ -27,7 +27,7 @@ public abstract class EntityMonster extends EntityCreature implements IMonster {
     }
 
     @Override
-	public void A_() {
+    public void A_() {
         super.A_();
         if (this.world.getDifficulty() == EnumDifficulty.PEACEFUL) {
             this.die();
@@ -36,37 +36,37 @@ public abstract class EntityMonster extends EntityCreature implements IMonster {
     }
 
     @Override
-	protected SoundEffect aa() {
+    protected SoundEffect aa() {
         return SoundEffects.cR;
     }
 
     @Override
-	protected SoundEffect ab() {
+    protected SoundEffect ab() {
         return SoundEffects.cQ;
     }
 
     @Override
-	public boolean damageEntity(DamageSource damagesource, float f) {
+    public boolean damageEntity(DamageSource damagesource, float f) {
         return this.isInvulnerable(damagesource) ? false : super.damageEntity(damagesource, f);
     }
 
     @Override
-	protected SoundEffect bW() {
+    protected SoundEffect bW() {
         return SoundEffects.cO;
     }
 
     @Override
-	protected SoundEffect bX() {
+    protected SoundEffect bX() {
         return SoundEffects.cN;
     }
 
     @Override
-	protected SoundEffect e(int i) {
+    protected SoundEffect e(int i) {
         return i > 4 ? SoundEffects.cM : SoundEffects.cP;
     }
 
     @Override
-	public boolean B(Entity entity) {
+    public boolean B(Entity entity) {
         float f = (float) this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).getValue();
         int i = 0;
 
@@ -119,7 +119,7 @@ public abstract class EntityMonster extends EntityCreature implements IMonster {
     }
 
     @Override
-	public float a(BlockPosition blockposition) {
+    public float a(BlockPosition blockposition) {
         return 0.5F - this.world.n(blockposition);
     }
 
@@ -144,18 +144,18 @@ public abstract class EntityMonster extends EntityCreature implements IMonster {
     }
 
     @Override
-	public boolean cM() {
+    public boolean cM() {
         return this.world.getDifficulty() != EnumDifficulty.PEACEFUL && this.r_() && super.cM();
     }
 
     @Override
-	protected void initAttributes() {
+    protected void initAttributes() {
         super.initAttributes();
         this.getAttributeMap().b(GenericAttributes.ATTACK_DAMAGE);
     }
 
     @Override
-	protected boolean isDropExperience() {
+    protected boolean isDropExperience() {
         return true;
     }
 }

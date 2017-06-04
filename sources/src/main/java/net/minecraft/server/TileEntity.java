@@ -14,8 +14,8 @@ public abstract class TileEntity {
     boolean isLoadingStructure = false; // Paper
     private static final Logger a = LogManager.getLogger();
     private static final RegistryMaterials<MinecraftKey, Class<? extends TileEntity>> f = new RegistryMaterials();
-    protected World world;
-    protected BlockPosition position;
+    public World world;
+    public BlockPosition position;
     protected boolean d;
     private int g;
     protected Block e;

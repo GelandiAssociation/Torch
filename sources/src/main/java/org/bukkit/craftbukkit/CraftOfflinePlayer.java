@@ -39,12 +39,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public boolean isOnline() {
+    public boolean isOnline() {
         return getPlayer() != null;
     }
 
     @Override
-	public String getName() {
+    public String getName() {
         Player player = getPlayer();
         if (player != null) {
             return player.getName();
@@ -67,7 +67,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public UUID getUniqueId() {
+    public UUID getUniqueId() {
         return profile.getId();
     }
 
@@ -76,12 +76,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public boolean isOp() {
+    public boolean isOp() {
         return server.getHandle().isOp(profile);
     }
 
     @Override
-	public void setOp(boolean value) {
+    public void setOp(boolean value) {
         if (value == isOp()) return;
 
         if (value) {
@@ -92,14 +92,14 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public boolean isBanned() {
+    public boolean isBanned() {
         if (getName() == null) return false;
 
         return server.getBanList(BanList.Type.NAME).isBanned(getName());
     }
 
     @Override
-	public void setBanned(boolean value) {
+    public void setBanned(boolean value) {
         if (getName() == null) return;
 
         if (value) {
@@ -110,12 +110,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public boolean isWhitelisted() {
+    public boolean isWhitelisted() {
         return server.playerList.isWhitelisted(profile);
     }
 
     @Override
-	public void setWhitelisted(boolean value) {
+    public void setWhitelisted(boolean value) {
         if (value) {
             server.playerList.addWhitelist(profile);
         } else {
@@ -124,7 +124,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public Map<String, Object> serialize() {
+    public Map<String, Object> serialize() {
         Map<String, Object> result = new LinkedHashMap<String, Object>();
 
         result.put("UUID", profile.getId().toString());
@@ -147,7 +147,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public Player getPlayer() {
+    public Player getPlayer() {
         return server.getPlayer(getUniqueId());
     }
 
@@ -194,7 +194,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public long getFirstPlayed() {
+    public long getFirstPlayed() {
         Player player = getPlayer();
         if (player != null) return player.getFirstPlayed();
 
@@ -213,7 +213,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public long getLastPlayed() {
+    public long getLastPlayed() {
         Player player = getPlayer();
         if (player != null) return player.getLastPlayed();
 
@@ -232,12 +232,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     @Override
-	public boolean hasPlayedBefore() {
+    public boolean hasPlayedBefore() {
         return getData() != null;
     }
 
     @Override
-	public Location getBedSpawnLocation() {
+    public Location getBedSpawnLocation() {
         NBTTagCompound data = getData();
         if (data == null) return null;
 

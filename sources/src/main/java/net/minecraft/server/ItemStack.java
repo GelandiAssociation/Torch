@@ -155,12 +155,12 @@ public final class ItemStack {
         int oldCount = this.getCount();
 
         if (!(this.getItem() instanceof ItemBucket)) { // if not bucket
-            world.captureBlockStates = true;
+            world.getReactor().captureBlockStates = true;
             // special case bonemeal
             if (this.getItem() instanceof ItemDye && this.getData() == 15) {
                 Block block = world.getType(blockposition).getBlock();
                 if (block == Blocks.SAPLING || block instanceof BlockMushroom) {
-                    world.captureTreeGeneration = true;
+                    world.getReactor().captureTreeGeneration = true;
                 }
             }
         }
@@ -169,9 +169,9 @@ public final class ItemStack {
         int newCount = this.getCount();
         this.setCount(oldCount);
         this.setData(oldData);
-        world.captureBlockStates = false;
-        if (enuminteractionresult == EnumInteractionResult.SUCCESS && world.captureTreeGeneration && world.capturedBlockStates.size() > 0) {
-            world.captureTreeGeneration = false;
+        world.getReactor().captureBlockStates = false;
+        if (enuminteractionresult == EnumInteractionResult.SUCCESS && world.getReactor().captureTreeGeneration && world.capturedBlockStates.size() > 0) {
+            world.getReactor().captureTreeGeneration = false;
             Location location = new Location(world.getWorld(), blockposition.getX(), blockposition.getY(), blockposition.getZ());
             TreeType treeType = BlockSapling.treeType;
             BlockSapling.treeType = null;
@@ -196,7 +196,7 @@ public final class ItemStack {
 
             return enuminteractionresult;
         }
-        world.captureTreeGeneration = false;
+        world.getReactor().captureTreeGeneration = false;
 
         if (enuminteractionresult == EnumInteractionResult.SUCCESS) {
             org.bukkit.event.block.BlockPlaceEvent placeEvent = null;

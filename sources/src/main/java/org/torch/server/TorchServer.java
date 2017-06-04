@@ -38,6 +38,7 @@ import org.bukkit.craftbukkit.util.Waitable;
 import org.bukkit.event.server.RemoteServerCommandEvent;
 import org.bukkit.event.server.ServerCommandEvent;
 import org.spigotmc.SlackActivityAccountant;
+import org.spigotmc.SpigotConfig;
 import org.torch.api.Anaphase;
 import org.torch.server.cache.TorchUserCache;
 
@@ -282,7 +283,6 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
     private String userMessage;
 
-    @Deprecated private boolean startProfiling;
     /**
      * If the given game mode will be forced apply
      */
@@ -390,7 +390,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
      */
     public static final int SAMPLE_TICK_INTERVAL = 20;
 
-    public TorchServer(OptionSet optionSet, Proxy proxy, DataConverterManager dataFixer, YggdrasilAuthenticationService yggdrasil, MinecraftSessionService session, GameProfileRepository profileRepository, UserCache profileCache) {
+    public TorchServer(OptionSet optionSet, Proxy proxy, DataConverterManager dataFixer, YggdrasilAuthenticationService yggdrasil, MinecraftSessionService session, GameProfileRepository profileRepository, TorchUserCache profileCache, MinecraftServer legacy) {
         server = this;
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
 
@@ -398,7 +398,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
         authService = yggdrasil;
         sessionService = session;
         profileRepo = profileRepository;
-        userCache = profileCache.getReactor();
+        userCache = profileCache;
         commandManager = createCommandDispatcher();
         dataConverterManager = dataFixer;
         options = optionSet;
@@ -445,8 +445,8 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
     /**
      * Constructor for the dedicated server
      */
-    public TorchServer(OptionSet optionSet, DataConverterManager dataFixer, YggdrasilAuthenticationService yggdrasil, MinecraftSessionService session, GameProfileRepository profileRepository, UserCache userCache) {
-        this(optionSet, Proxy.NO_PROXY, dataFixer, yggdrasil, session, profileRepository, userCache);
+    public TorchServer(OptionSet optionSet, DataConverterManager dataFixer, YggdrasilAuthenticationService yggdrasil, MinecraftSessionService session, GameProfileRepository profileRepository, TorchUserCache userCache, DedicatedServer legacy) {
+        this(optionSet, Proxy.NO_PROXY, dataFixer, yggdrasil, session, profileRepository, userCache, legacy);
 
         new Thread("Server Infinisleeper") {
             { setDaemon(true); start(); }
@@ -922,12 +922,12 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
         int index, size; CrashReport crashreport;
         for (index = 0, size = worlds.size(); index < size; index++) {
-            WorldServer worldserver = this.worlds.get(index);
+            WorldServer world = this.worlds.get(index);
 
             try {
-                worldserver.timings.doTick.startTiming();
-                worldserver.doTick();
-                worldserver.timings.doTick.stopTiming();
+                world.timings.doTick.startTiming();
+                world.doTick();
+                world.timings.doTick.stopTiming();
             } catch (Throwable t) {
                 try {
                     crashreport = CrashReport.a(t, "Exception ticking world");
@@ -935,14 +935,14 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                     throw new RuntimeException("Error generating crash report", throwable);
                 }
 
-                worldserver.a(crashreport);
+                world.a(crashreport);
                 throw new ReportedException(crashreport);
             }
 
             try {
-                worldserver.timings.tickEntities.startTiming();
-                worldserver.tickEntities();
-                worldserver.timings.tickEntities.stopTiming();
+                world.timings.tickEntities.startTiming();
+                world.tickEntities();
+                world.timings.tickEntities.stopTiming();
             } catch (Throwable t) {
                 try {
                     crashreport = CrashReport.a(t, "Exception ticking world entities");
@@ -950,12 +950,12 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                     throw new RuntimeException("Error generating crash report", throwable);
                 }
 
-                worldserver.a(crashreport);
+                world.a(crashreport);
                 throw new ReportedException(crashreport);
             }
 
-            worldserver.getTracker().updatePlayers();
-            worldserver.explosionDensityCache.clear(); // Paper - Optimize explosions
+            world.getTracker().updatePlayers();
+            world.getReactor().explosionDensityCache.clear(); // Paper - Optimize explosions
         }
 
         MinecraftTimings.connectionTimer.startTiming();
@@ -1064,7 +1064,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
         // Stop snooper if running
         if (this.usageSnooper.d()) this.usageSnooper.e();
-        if (org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) {
+        if (SpigotConfig.saveUserCacheOnStopOnly) {
             logger.info("Saving usercache.json");
             this.userCache.save(false);
         }
@@ -1186,14 +1186,6 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
      */
     public int getMaxPlayers() {
         return this.playerList.getMaxPlayers();
-    }
-
-    /**
-     * Starting the method profiler at the beginning of next tick, deprecated because the vanilla method profiler has been removed
-     */
-    @Deprecated
-    public void startProfiling() {
-        this.startProfiling = true;
     }
 
     /**
@@ -1462,10 +1454,10 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
     /**
      * Check if the block is in the server protected area
      */
-    public boolean isBlockProtected(World world, BlockPosition blockposition, EntityHuman entityhuman) {
+    public boolean isBlockProtected(World world, BlockPosition blockposition, EntityHuman player) {
         if (world.worldProvider.getDimensionManager().getDimensionID() != 0) {
         } else if (this.playerList.getOperators().isEmpty()) {
-        } else if (this.playerList.isOp(entityhuman.getProfile())) {
+        } else if (this.playerList.isOp(player.getProfile())) {
         } else if (this.getSpawnProtectionSize() <= 0) {
         } else {
             BlockPosition spawnPosition = world.getSpawn();

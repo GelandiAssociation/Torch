@@ -2,11 +2,11 @@ package org.bukkit.event.player;
 
 import com.google.common.base.Preconditions;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
+import org.torch.event.MutableEvent;
 
 /**
  * Holds information for player movement events
@@ -20,8 +20,8 @@ public class PlayerMoveEvent extends PlayerEvent implements Cancellable {
     
     private static PlayerMoveEvent instance;
     
-    public static PlayerMoveEvent requestMutable(final Player player, final Location from, final Location to) {
-        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Async request mutable event!");
+    public static PlayerMoveEvent of(final Player player, final Location from, final Location to) {
+        MutableEvent.init(instance);
         
         if (instance == null) {
             instance = new PlayerMoveEvent(player, from, to);
