@@ -27,7 +27,7 @@ public class WhiteList extends JsonList<GameProfile, WhiteListEntry> {
     public String[] getEntries() {
         String[] values = new String[this.getMap().size()]; int index = 0;
         for (WhiteListEntry entry : this.getMap().values()) values[index++] = entry.getKey().getName();
-
+        
         return values;
     }
 

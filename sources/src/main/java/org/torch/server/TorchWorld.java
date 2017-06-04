@@ -1086,10 +1086,13 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 if (pos.getY() >= 256) {
                     pos = new BlockPosition(pos.getX(), 255, pos.getZ());
                 }
-                if (!this.isChunkLoaded(pos)) return 0; // Paper
                 
-                Chunk chunk = this.getChunkAt(pos);
-                return chunk.a(pos, this.skylightSubtracted); // PAIL: getLightSubtracted
+                Chunk chunk = this.getChunkIfLoaded(pos);
+                if (chunk == null) {
+                    return 0;
+                } else {
+                    return chunk.a(pos, this.skylightSubtracted); // PAIL: getLightSubtracted
+                }
             }
         } else {
             return 15;
@@ -2552,7 +2555,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      *
      * @return The current brightness factor
      * */
-    public int getSunBrightnessFactor(float partialTicks) {
+    public float getSunBrightnessFactor(float partialTicks) {
         float f1 = this.getCelestialAngle(partialTicks);
         float f2 = 1.0F - (MathHelper.cos(f1 * 6.2831855F) * 2.0F + 0.5F);
 
@@ -2560,8 +2563,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         f2 = 1.0F - f2;
         f2 = (float) (f2 * (1.0D - this.currentRainingStrength(partialTicks) * 5.0F / 16.0D));
         f2 = (float) (f2 * (1.0D - this.currentThunderingStrength(partialTicks) * 5.0F / 16.0D));
-        f2 = 1.0F - f2;
-        return (int) (f2 * 11.0F);
+        
+        return f2;
     }
     
     public float getCelestialAngle(float partialTicks) {
@@ -2576,11 +2579,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     /**
-     * Return getCelestialAngle()*2*PI
+     * Return getCelestialAngle() * 2 * PI
      */
     public float getCelestialAngleRadians(float partialTicks) {
         float f1 = this.getCelestialAngle(partialTicks);
-        return f1 * ((float) Math.PI * 2F);
+        return f1 * 6.2831855F;
     }
     
     public BlockPosition getPrecipitationHeight(BlockPosition position) {
