@@ -23,6 +23,8 @@ import org.spigotmc.SpigotWorldConfig;
 import org.torch.api.Async;
 import org.torch.api.IWorldAccess;
 import org.torch.api.TorchReactor;
+import org.torch.utils.random.LightRandom;
+
 import com.destroystokyo.paper.PaperWorldConfig;
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent;
@@ -146,7 +148,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     protected float prevThunderingStrength;
     public float thunderingStrength;
 
-    public final Random random = new Random();
+    public final Random random = new LightRandom();
     /**
      * The path listener
      */
@@ -1484,7 +1486,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * Puts the world random seed to a specific state dependant on the inputs
      */
     public Random setRandomSeed(int x, int z, int extra) {
-        long seed = x * 341873128712L + z * 132897987541L + this.getWorldData().getSeed() + extra;
+        long seed = x * 341873128712L + z * 132897987541L + worldData.getSeed() + extra;
         
         this.random.setSeed(seed);
         return this.random;
