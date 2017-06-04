@@ -28,8 +28,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Logger;
 import org.torch.api.Async;
-import org.torch.server.Regulator;
-
 import static org.torch.server.TorchServer.logger;
 
 public class JsonList<K, V extends JsonListEntry<K>> {

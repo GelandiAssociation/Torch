@@ -46,7 +46,7 @@ public class OpList extends JsonList<GameProfile, OpListEntry> {
     }
 
     protected String c(GameProfile profile) { // PAIL: toStringKey
-        return authUUID() ? profile.getId().toString() : profile.getName().toLowerCase();
+        return profile.getName().toLowerCase();
     }
 
     public GameProfile a(String s) {

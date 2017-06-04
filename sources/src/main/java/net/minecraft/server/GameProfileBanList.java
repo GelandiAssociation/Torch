@@ -32,7 +32,7 @@ public class GameProfileBanList extends JsonList<GameProfile, GameProfileBanEntr
     }
 
     protected String b(GameProfile profile) {
-        return authUUID() ? profile.getId().toString() : profile.getName().toLowerCase();
+        return profile.getName().toLowerCase();
     }
 
     public GameProfile a(String s) {
