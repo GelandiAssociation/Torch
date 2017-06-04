@@ -5,8 +5,6 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
 import org.torch.event.MutableEvent;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;

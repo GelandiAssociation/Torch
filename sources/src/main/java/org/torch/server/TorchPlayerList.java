@@ -3,7 +3,6 @@ package org.torch.server;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.koloboke.collect.map.hash.HashObjObjMaps;
 import com.koloboke.collect.set.hash.HashObjSets;
 import com.mojang.authlib.GameProfile;
@@ -164,7 +163,7 @@ public final class TorchPlayerList implements TorchReactor {
         bannedIPs = new IpBanList(IP_BANS_FILE);
         operators = new OpList(OPS_FILE);
         whitelist = new WhiteList(WHITELIST_FILE);
-        playerStatFiles = Maps.newConcurrentMap();
+        playerStatFiles = HashObjObjMaps.newMutableMap();
 
         /**
          * Dedicated PlayerList

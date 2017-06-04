@@ -1,6 +1,5 @@
 package org.bukkit.event.entity;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.torch.event.MutableEvent;
@@ -9,7 +8,7 @@ import org.torch.event.MutableEvent;
  * Called when an Entity targets a {@link LivingEntity} and can only target
  * LivingEntity's.
  */
-public class EntityTargetLivingEntityEvent extends EntityTargetEvent {
+public class EntityTargetLivingEntityEvent extends EntityTargetEvent implements MutableEvent {
     public EntityTargetLivingEntityEvent(final Entity entity, final LivingEntity target, final TargetReason reason) {
         super(entity, target, reason);
     }

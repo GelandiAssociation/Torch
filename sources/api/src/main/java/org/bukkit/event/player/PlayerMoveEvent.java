@@ -11,7 +11,7 @@ import org.torch.event.MutableEvent;
 /**
  * Holds information for player movement events
  */
-public class PlayerMoveEvent extends PlayerEvent implements Cancellable {
+public class PlayerMoveEvent extends PlayerEvent implements Cancellable, MutableEvent {
     private static final HandlerList handlers = new HandlerList();
     private boolean cancel = false;
     // Torch start

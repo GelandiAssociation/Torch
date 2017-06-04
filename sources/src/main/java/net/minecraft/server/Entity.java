@@ -1313,7 +1313,7 @@ public abstract class Entity implements ICommandListener {
         double offsetY = this.locY - tY;
         double offsetZ = this.locZ - tZ;
 
-        return Math.pow(offsetX, 2) + Math.pow(offsetY, 2) + Math.pow(offsetZ, 2);
+        return offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ;
     }
 
     public double c(BlockPosition blockposition) {
@@ -1335,7 +1335,7 @@ public abstract class Entity implements ICommandListener {
         double d4 = this.locY - d1;
         double d5 = this.locZ - d2;
 
-        return MathHelper.sqrt(Math.pow(d3, 2) + Math.pow(d4, 2) + Math.pow(d5, 2));
+        return MathHelper.sqrt(d3 * d3 + d4 * d4 + d5 * d5);
     }
 
     public double h(Entity entity) {
@@ -1343,7 +1343,7 @@ public abstract class Entity implements ICommandListener {
         double d1 = this.locY - entity.locY;
         double d2 = this.locZ - entity.locZ;
 
-        return Math.pow(d0, 2) + Math.pow(d1, 2) + Math.pow(d2, 2);
+        return d0 * d0 + d1 * d1 + d2 * d2;
     }
 
     public void d(EntityHuman entityhuman) {}

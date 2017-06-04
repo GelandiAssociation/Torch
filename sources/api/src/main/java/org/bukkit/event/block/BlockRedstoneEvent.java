@@ -7,7 +7,7 @@ import org.torch.event.MutableEvent;
 /**
  * Called when a redstone current changes
  */
-public class BlockRedstoneEvent extends BlockEvent {
+public class BlockRedstoneEvent extends BlockEvent implements MutableEvent {
     private static final HandlerList handlers = new HandlerList();
     // Torch start
     protected int oldCurrent;
