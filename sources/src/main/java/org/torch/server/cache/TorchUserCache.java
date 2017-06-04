@@ -134,7 +134,7 @@ public final class TorchUserCache implements TorchReactor {
     public static GameProfile matchProfile(GameProfileRepository profileRepo, String keyUsername) {
         // Keep current case for offline servers
         if (!authUUID()) {
-            return new GameProfile(EntityHuman.offlinePlayerUUID(keyUsername, false), keyUsername);
+            return new GameProfile(EntityHuman.offlinePlayerUUID(keyUsername), keyUsername);
         }
         
         final GameProfile[] profile = new GameProfile[1];

@@ -1850,7 +1850,7 @@ public abstract class EntityHuman extends EntityLiving {
 
     // Torch start - OBFHELPER
     public static UUID offlinePlayerUUID(String name) {
-        return offlinePlayerUUID(name, true);
+        return offlinePlayerUUID(name, false);
     }
 
     public static UUID offlinePlayerUUID(String name, boolean toLowerCase) {
@@ -1858,7 +1858,7 @@ public abstract class EntityHuman extends EntityLiving {
     }
 
     public static UUID d(String name) {
-        return offlinePlayerUUID(name, true);
+        return offlinePlayerUUID(name, false);
     }
     // Torch end
 

@@ -23,8 +23,6 @@ import org.spigotmc.SpigotWorldConfig;
 import org.torch.api.Async;
 import org.torch.api.IWorldAccess;
 import org.torch.api.TorchReactor;
-import org.torch.utils.random.LightRandom;
-
 import com.destroystokyo.paper.PaperWorldConfig;
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent;
@@ -53,7 +51,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
 @Getter
@@ -137,7 +134,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * value of 0x3c6ef35f, producing a highly planar series of values ill-suited for choosing random blocks in a
      * 16x128x16 field.
      */
-    protected int updateLCG = ThreadLocalRandom.current().nextInt();
+    protected int updateLCG = new Random().nextInt();
     /**
      * Magic number used to generate fast random numbers for 3d distribution within a chunk
      */
@@ -149,7 +146,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     protected float prevThunderingStrength;
     public float thunderingStrength;
 
-    public final Random random = new LightRandom();
+    public final Random random = new Random();
     /**
      * The path listener
      */
