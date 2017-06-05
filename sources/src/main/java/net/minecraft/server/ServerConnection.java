@@ -164,7 +164,7 @@ public class ServerConnection {
             Collections.shuffle(this.h);
         }
         
-        boolean needRemoval;
+        boolean needRemoval = false;
         Iterator<NetworkManager> iterator = this.h.iterator();
         
         while (iterator.hasNext()) {
