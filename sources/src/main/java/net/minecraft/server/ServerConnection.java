@@ -77,6 +77,15 @@ public class ServerConnection {
      */
     private final List<NetworkManager> h = WrappedCollections.wrappedList(Lists.newCopyOnWriteArrayList());
     
+    private final List<NetworkManager> pending = Collections.synchronizedList(Lists.newLinkedList());
+    
+    private void removePending() {
+        synchronized (pending) {
+            h.removeAll(pending);
+            pending.clear();
+        }
+    }
+    
     public ServerConnection(MinecraftServer minecraftserver) {
         this.f = minecraftserver;
         this.d = true;
@@ -155,6 +164,7 @@ public class ServerConnection {
             Collections.shuffle(this.h);
         }
         
+        boolean needRemoval;
         Iterator<NetworkManager> iterator = this.h.iterator();
         
         while (iterator.hasNext()) {
@@ -194,10 +204,13 @@ public class ServerConnection {
                 // Spigot - Fix a race condition where a NetworkManager could be unregistered just before connection.
                 if (networkManager.preparing) continue;
                 
-                iterator.remove();
+                needRemoval = true;
+                pending.add(networkManager);
                 networkManager.handleDisconnection();
             }
         }
+        
+        if (needRemoval) removePending();
     }
 
     public MinecraftServer d() {
