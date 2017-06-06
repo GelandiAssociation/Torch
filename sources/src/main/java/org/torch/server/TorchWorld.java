@@ -498,12 +498,13 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             this.tileEntityToUnload.clear();
         }
         // CraftBukkit end
-        
-        for (int order = 0, size = tickableTileEntities.size(); order < size; order++) { // Paper - Disable tick limiters
-            TileEntity tickable = this.tickableTileEntities.get(order);
+
+	TileEntity[] tickList = tickableTileEntities.toArray(new TileEntity[tickableTileEntities.size()]);
+        for (TileEntity tickable : tickList) { // Paper - Disable tick limiters
+            //TileEntity tickable = tickableEntetiesList.get(tickableEntetiesList) this.tickableTileEntities.get(order);
             if (tickable == null) {
                 logger.warn("Spigot has detected a null entity and has removed it, preventing a crash");
-                this.tickableTileEntities.remove(order--);
+                this.tickableTileEntities.remove(null);
                 continue;
             }
             
@@ -520,7 +521,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                         System.err.println(msg);
                         t.printStackTrace();
                         getCraftServer().getPluginManager().callEvent(new ServerExceptionEvent(new ServerInternalException(msg, t)));
-                        this.tickableTileEntities.remove(order--);
+                        this.tickableTileEntities.remove(tickable);
                         continue;
                     } finally {
                         tickable.tickTimer.stopTiming();
@@ -529,12 +530,13 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
             
             if (tickable.y()) {
-                this.tickableTileEntities.remove(order--);
+                this.tickableTileEntities.remove(tickable);
                 
                 Chunk chunk = this.getChunkIfLoaded(tickable.getPosition());
                 if (chunk != null) chunk.d(tickable.getPosition());
             }
-        }
+	}
+
         timings.tileEntityTick.stopTiming();
         
         this.processingLoadedTiles = false;
