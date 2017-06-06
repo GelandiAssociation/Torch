@@ -16,9 +16,7 @@ import org.torch.utils.random.LightRNG;
  * without breaking every code.
  */
 public class LightRandom extends Random {
-    private final static LightRNG light = new LightRNG(); // LightRNG, static.
-
-    private static final long serialVersionUID = 1L;
+    private final LightRNG light = new LightRNG(); // LightRNG
 
     public LightRandom() {}
 
