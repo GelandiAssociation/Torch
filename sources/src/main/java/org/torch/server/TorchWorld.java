@@ -149,7 +149,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     protected float prevThunderingStrength;
     public float thunderingStrength;
 
-    public final Random random = new LightRandom();
+    public final Random random = new Random();
     /**
      * The path listener
      */
@@ -410,7 +410,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
             
             if (entity.dead) {
-                this.lightingEntities.remove(i--);
+                this.lightingEntities.remove(i);
             }
         }
         
@@ -437,13 +437,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         timings.entityTick.startTiming();
         guardEntityList = true;
-        // CraftBukkit start - Use field for loop variable
         TimingHistory.entityTicks += this.entityList.size(); // Paper
         
-        for (tickPosition = 0; tickPosition < entityList.size(); tickPosition++) {
-            tickPosition = (tickPosition < entityList.size()) ? tickPosition : 0;
-            entity = this.entityList.get(tickPosition);
-            // CraftBukkit end
+        for (int i = 0, size = entityList.size(); i < size; i++) {
+            tickPosition = i; // TODO: remove unused field
+            entity = this.entityList.get(i);
             Entity entity1 = entity.bB();
             
             if (entity1 != null) {
@@ -481,7 +479,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 }
                 
                 guardEntityList = false;
-                this.entityList.remove(tickPosition--); // CraftBukkit - Use field for loop variable
+                this.entityList.remove(i);
                 guardEntityList = true;
                 this.onEntityRemove(entity);
             }
@@ -499,9 +497,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         }
         // CraftBukkit end
 
-	TileEntity[] tickList = tickableTileEntities.toArray(new TileEntity[tickableTileEntities.size()]);
-        for (TileEntity tickable : tickList) { // Paper - Disable tick limiters
-            //TileEntity tickable = tickableEntetiesList.get(tickableEntetiesList) this.tickableTileEntities.get(order);
+        for (TileEntity tickable : tickableTileEntities) { // Paper - Disable tick limiters
             if (tickable == null) {
                 logger.warn("Spigot has detected a null entity and has removed it, preventing a crash");
                 this.tickableTileEntities.remove(null);
@@ -2418,15 +2414,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 if (chunk != null) chunk.b(entity);
             }
             
-            // CraftBukkit start - Decrement loop variable field if we've already ticked this entity
-            int index = this.entityList.indexOf(entity);
-            if (index != -1) {
-                if (index <= this.tickPosition) {
-                    this.tickPosition--;
-                }
-                this.entityList.remove(index);
-            }
-            // CraftBukkit end
+             this.entityList.remove(entity);
         }
         this.onEntityRemove(entity);
     }
