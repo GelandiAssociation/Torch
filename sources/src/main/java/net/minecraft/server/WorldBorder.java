@@ -1,6 +1,9 @@
 package net.minecraft.server;
 
 import com.google.common.collect.Lists;
+
+import net.minecraft.server.BlockPosition.MutableBlockPosition;
+
 import java.util.Iterator;
 import java.util.List;
 
@@ -29,12 +32,13 @@ public class WorldBorder {
         this.l = 5;
     }
 
-    public boolean isInBounds(BlockPosition blockposition) { return a(blockposition); }public boolean a(BlockPosition blockposition) { // Paper - OBFHELPER
-        return (double) (blockposition.getX() + 1) > this.b() && (double) blockposition.getX() < this.d() && (double) (blockposition.getZ() + 1) > this.c() && (double) blockposition.getZ() < this.e();
+    public boolean isInBounds(BlockPosition blockposition) { return a(blockposition); }
+    public boolean a(BlockPosition blockposition) { // Paper - OBFHELPER
+        return blockposition.getX() + 1 > this.b() && blockposition.getX() < this.d() && blockposition.getZ() + 1 > this.c() && blockposition.getZ() < this.e();
     }
 
     // Paper start
-    private final BlockPosition.MutableBlockPosition mutPos = new BlockPosition.MutableBlockPosition();
+    private final MutableBlockPosition mutPos = new MutableBlockPosition();
     public boolean isBlockInBounds(int chunkX, int chunkZ) {
         mutPos.setValues(chunkX, 64, chunkZ);
         return isInBounds(mutPos);
@@ -46,7 +50,7 @@ public class WorldBorder {
     // Paper end
 
     public boolean isInBounds(ChunkCoordIntPair chunkcoordintpair) {
-        return (double) chunkcoordintpair.e() > this.b() && (double) chunkcoordintpair.c() < this.d() && (double) chunkcoordintpair.f() > this.c() && (double) chunkcoordintpair.d() < this.e();
+        return chunkcoordintpair.e() > this.b() && chunkcoordintpair.c() < this.d() && chunkcoordintpair.f() > this.c() && chunkcoordintpair.d() < this.e();
     }
 
     public boolean a(AxisAlignedBB axisalignedbb) {
@@ -75,8 +79,8 @@ public class WorldBorder {
     public double b() {
         double d0 = this.getCenterX() - this.getSize() / 2.0D;
 
-        if (d0 < (double) (-this.h)) {
-            d0 = (double) (-this.h);
+        if (d0 < (-this.h)) {
+            d0 = (-this.h);
         }
 
         return d0;
@@ -85,8 +89,8 @@ public class WorldBorder {
     public double c() {
         double d0 = this.getCenterZ() - this.getSize() / 2.0D;
 
-        if (d0 < (double) (-this.h)) {
-            d0 = (double) (-this.h);
+        if (d0 < (-this.h)) {
+            d0 = (-this.h);
         }
 
         return d0;
@@ -95,8 +99,8 @@ public class WorldBorder {
     public double d() {
         double d0 = this.getCenterX() + this.getSize() / 2.0D;
 
-        if (d0 > (double) this.h) {
-            d0 = (double) this.h;
+        if (d0 > this.h) {
+            d0 = this.h;
         }
 
         return d0;
@@ -105,8 +109,8 @@ public class WorldBorder {
     public double e() {
         double d0 = this.getCenterZ() + this.getSize() / 2.0D;
 
-        if (d0 > (double) this.h) {
-            d0 = (double) this.h;
+        if (d0 > this.h) {
+            d0 = this.h;
         }
 
         return d0;
@@ -135,7 +139,7 @@ public class WorldBorder {
 
     public double getSize() {
         if (this.getState() != EnumWorldBorderState.STATIONARY) {
-            double d0 = (double) ((float) (System.currentTimeMillis() - this.g) / (float) (this.f - this.g));
+            double d0 = (float) (System.currentTimeMillis() - this.g) / (float) (this.f - this.g);
 
             if (d0 < 1.0D) {
                 return this.d + (this.e - this.d) * d0;

@@ -46,6 +46,7 @@ import static org.torch.server.TorchServer.getServer;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -90,7 +91,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         }
 
         private void guard() {
-            if (guardEntityList) throw new java.util.ConcurrentModificationException();
+            if (guardEntityList) throw new ConcurrentModificationException();
         }
     };
     private boolean guardEntityList;
@@ -225,7 +226,10 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     
     public static boolean haveWeSilencedAPhysicsCrash;
     public static String blockLocation;
+    
+    // Used during remove entity, designed for performance, or we should copy the list
     private int tickPosition;
+    private int tileTickPosition;
     
     public final Map<Explosion.CacheKey, Float> explosionDensityCache = HashObjFloatMaps.newMutableMap();
     
@@ -292,10 +296,12 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return servant.getWorld();
     }
 
+    @Nullable
     public Chunk getChunkIfLoaded(BlockPosition pos) {
         return this.chunkProvider.getLoadedChunkAt(pos.getX() >> 4, pos.getZ() >> 4);
     }
 
+    @Nullable
     public Chunk getChunkIfLoaded(int cx, int cz) {
         return ((ChunkProviderServer) this.chunkProvider).getChunkIfLoaded(cx, cz);
     }
@@ -389,10 +395,9 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public void tickEntities() {
-        Entity entity;
-        
-        for (int i = 0, size = lightingEntities.size(); i < size; i++) {
-            entity = lightingEntities.get(i);
+        Iterator<Entity> it = lightingEntities.iterator();
+        while (it.hasNext()) {
+            Entity entity = it.next();
             if (entity == null) continue; // CraftBukkit - fixed an NPE
             
             try {
@@ -408,7 +413,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
             
             if (entity.dead) {
-                this.lightingEntities.remove(i);
+                it.remove();
             }
         }
         
@@ -437,9 +442,9 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         guardEntityList = true;
         TimingHistory.entityTicks += this.entityList.size(); // Paper
         
-        for (int i = 0, size = entityList.size(); i < size; i++) {
-            tickPosition = i; // TODO: remove unused field
-            entity = this.entityList.get(i);
+        for (tickPosition = 0; tickPosition < entityList.size(); tickPosition++) {
+            tickPosition = (tickPosition < entityList.size()) ? tickPosition : 0;
+            Entity entity = this.entityList.get(this.tickPosition);
             Entity entity1 = entity.bB();
             
             if (entity1 != null) {
@@ -477,28 +482,32 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 }
                 
                 guardEntityList = false;
-                this.entityList.remove(i);
+                entityList.remove(tickPosition--);
                 guardEntityList = true;
+                
                 this.onEntityRemove(entity);
             }
         }
-        guardEntityList = false; // Spigot
-        timings.entityTick.stopTiming(); // Spigot
+        guardEntityList = false;
+        timings.entityTick.stopTiming();
         
         this.processingLoadedTiles = true;
         
-        timings.tileEntityTick.startTiming(); // Spigot
+        timings.tileEntityTick.startTiming();
         // CraftBukkit start - From below, clean up tile entities before ticking them
         if (!this.tileEntityToUnload.isEmpty()) {
             this.tickableTileEntities.removeAll(this.tileEntityToUnload);
             this.tileEntityToUnload.clear();
         }
         // CraftBukkit end
-
-        for (TileEntity tickable : tickableTileEntities) { // Paper - Disable tick limiters
+        
+        for (tileTickPosition = 0; tileTickPosition < tickableTileEntities.size(); tileTickPosition++) { // Paper - Disable tick limiters
+            tileTickPosition = (tileTickPosition < tickableTileEntities.size()) ? tileTickPosition : 0;
+            TileEntity tickable = this.tickableTileEntities.get(tileTickPosition);
+            
             if (tickable == null) {
                 logger.warn("Spigot has detected a null entity and has removed it, preventing a crash");
-                this.tickableTileEntities.remove(null);
+                this.tickableTileEntities.remove(tileTickPosition--);
                 continue;
             }
             
@@ -515,7 +524,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                         System.err.println(msg);
                         t.printStackTrace();
                         getCraftServer().getPluginManager().callEvent(new ServerExceptionEvent(new ServerInternalException(msg, t)));
-                        this.tickableTileEntities.remove(tickable);
+                        this.tickableTileEntities.remove(tileTickPosition--);
                         continue;
                     } finally {
                         tickable.tickTimer.stopTiming();
@@ -524,7 +533,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
             
             if (tickable.y()) {
-                this.tickableTileEntities.remove(tickable);
+                this.tickableTileEntities.remove(tileTickPosition--);
                 
                 Chunk chunk = this.getChunkIfLoaded(tickable.getPosition());
                 if (chunk != null) chunk.d(tickable.getPosition());
@@ -537,10 +546,10 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         timings.tileEntityPending.startTiming();
         if (!this.addedTileEntities.isEmpty()) {
+            Chunk chunk;
             for (TileEntity added : this.addedTileEntities) {
                 if (!added.y()) {
-                    if (this.isChunkLoaded(added.getPosition())) {
-                        Chunk chunk = this.getChunkAt(added.getPosition());
+                    if ((chunk = this.getChunkIfLoaded(added.getPosition())) != null) {
                         IBlockData iblockdata = chunk.getBlockData(added.getPosition());
                         
                         chunk.a(added.getPosition(), added);
@@ -576,18 +585,19 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 } catch (Throwable throwable) {
                     CrashReport crashreport = CrashReport.a(throwable, "Ticking player");
                     CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Player being ticked");
-
+                    
                     entity.appendEntityCrashDetails(crashreportsystemdetails);
                     throw new ReportedException(crashreport);
                 }
             }
 
             if (entity.dead) {
-                int j = entity.ab;
-                int k = entity.ad;
-
-                if (entity.aa && this.isChunkLoaded(j, k)) {
-                    this.getChunkAt(j, k).b(entity);
+                int cx = entity.ab;
+                int cz = entity.ad;
+                
+                if (entity.aa) {
+                    Chunk chunk = this.getChunkIfLoaded(cx, cz);
+                    if (chunk != null) chunk.b(entity);
                 }
 
                 this.entityList.remove(entity);
@@ -597,8 +607,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     /**
-     * <b>PAIL: updateEntity</b>
-     * <p>Forcefully updates the entity
+     * Forcefully updates the entity
      */
     public void updateEntity(Entity entity) {
         this.entityJoinedWorld(entity, true);
@@ -654,8 +663,9 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             int coordZ = MathHelper.floor(entity.locZ / 16.0D);
             
             if (!entity.isAddedToChunk() || entity.ab != coordX || entity.ac != coordY || entity.ad != coordZ) {
-                if (entity.isAddedToChunk() && this.isChunkLoaded(entity.ab, entity.ad)) {
-                    this.getChunkAt(entity.ab, entity.ad).a(entity, entity.ac);
+                if (entity.isAddedToChunk()) {
+                    Chunk chunk = this.getChunkIfLoaded(entity.ab, entity.ad);
+                    if (chunk != null) chunk.a(entity, entity.ac);;
                 }
 
                 if (!entity.bv() && !this.isChunkLoaded(coordX, coordZ)) {
@@ -683,9 +693,9 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public boolean checkNoEntityCollision(AxisAlignedBB aabb, @Nullable Entity entity) {
-        List<Entity> list = this.getEntities((Entity) null, aabb);
+        List<Entity> list = this.getEntities(aabb);
 
-        for (int i = 0; i < list.size(); ++i) {
+        for (int i = 0, size = list.size(); i < size; ++i) {
             Entity entity1 = list.get(i);
 
             if (!entity1.dead && entity1.i && entity1 != entity && (entity == null || entity1.x(entity))) {
@@ -703,9 +713,9 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * @return if there are no visible players colliding
      */
     public boolean checkNoVisiblePlayerCollisions(AxisAlignedBB aabb, @Nullable Entity entity) {
-        List<Entity> list = this.getEntities((Entity) null, aabb);
+        List<Entity> list = this.getEntities(aabb);
         
-        for (int i = 0; i < list.size(); ++i) {
+        for (int i = 0, size = list.size(); i < size; ++i) {
             Entity entity1 = list.get(i);
 
             if (entity instanceof EntityPlayer && entity1 instanceof EntityPlayer) {
@@ -847,18 +857,18 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     /**
      * Marks a vertical line of blocks as dirty
      */
-    public void markVerticalBlocksDirty(int i, int j, int k, int l) {
-        int i1;
+    public void markVerticalBlocksDirty(int x, int z, int k, int l) {
+        int y;
         
         if (k > l) {
-            i1 = l;
+            y = l;
             l = k;
-            k = i1;
+            k = y;
         }
         
         if (servant.worldProvider.m()) {
-            for (i1 = k; i1 <= l; ++i1) {
-                this.checkLightFor(EnumSkyBlock.SKY, new BlockPosition(i, i1, j));
+            for (y = k; y <= l; ++y) {
+                this.checkLightFor(EnumSkyBlock.SKY, new BlockPosition(x, y, z));
             }
         }
     }
@@ -1112,29 +1122,25 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         }
     }
 
-    public int getBrightness(EnumSkyBlock enumskyblock, BlockPosition blockposition) {
-        if (blockposition.getY() < 0) {
-            blockposition = new BlockPosition(blockposition.getX(), 0, blockposition.getZ());
+    public int getBrightness(EnumSkyBlock lightType, BlockPosition pos) {
+        if (pos.getY() < 0) {
+            pos = new BlockPosition(pos.getX(), 0, pos.getZ());
         }
-
-        if (!blockposition.isValidLocation()) { // Paper
-            return enumskyblock.c;
-        } else if (!this.isChunkLoaded(blockposition)) {
-            return enumskyblock.c;
+        
+        Chunk chunk;
+        if (!pos.isValidLocation()) { // Paper
+            return lightType.c;
+        } else if ((chunk = this.getChunkIfLoaded(pos)) == null) {
+            return lightType.c;
         } else {
-            Chunk chunk = this.getChunkAt(blockposition);
-
-            return chunk.getBrightness(enumskyblock, blockposition);
+            return chunk.getBrightness(lightType, pos);
         }
     }
 
-    public void setLightFor(EnumSkyBlock enumskyblock, BlockPosition blockposition, int lightValue) {
-        if (blockposition.isValidLocation()) { // Paper
-            if (this.isChunkLoaded(blockposition)) {
-                Chunk chunk = this.getChunkAt(blockposition);
-                
-                chunk.a(enumskyblock, blockposition, lightValue);
-            }
+    public void setLightFor(EnumSkyBlock lightType, BlockPosition position, int lightValue) {
+        if (position.isValidLocation()) { // Paper
+            Chunk chunk = this.getChunkIfLoaded(position);
+            if (chunk != null) chunk.a(lightType, position, lightValue);
         }
     }
     
@@ -1154,7 +1160,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
         }
         // CraftBukkit end
-        Chunk chunk = ((ChunkProviderServer) this.chunkProvider).getChunkIfLoaded(x >> 4, z >> 4);
+        Chunk chunk = this.getChunkIfLoaded(position);
         if (chunk != null) {
             return chunk.getBlockData(x, y, z);
         }
@@ -1177,7 +1183,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 for (int y = minY; y < maxY; y++) {
                     for (int z = minZ; z < maxZ; z++) {
                         IBlockData iblockdata = this.getType(position.f(x, y, z));
-
+                        
                         if (iblockdata.getMaterial() != Material.AIR) {
                             return true;
                         }
@@ -1962,14 +1968,13 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public BlockPosition getSpawn() {
-        BlockPosition spawnPosition = new BlockPosition(this.worldData.b(), this.worldData.c(), this.worldData.d());
+        BlockPosition spawnPos = new BlockPosition(this.worldData.b(), this.worldData.c(), this.worldData.d());
         
-        // TODO: The check move to worldData.setSpawn, not in getSpawn
-        if (!this.getWorldBorder().a(spawnPosition)) {
-            spawnPosition = this.getHighestBlockAt(new BlockPosition(this.getWorldBorder().getCenterX(), 0.0D, this.getWorldBorder().getCenterZ()));
+        if (!this.getWorldBorder().isInBounds(spawnPos)) {
+            spawnPos = this.getHighestBlockAt(new BlockPosition(this.getWorldBorder().getCenterX(), 0.0D, this.getWorldBorder().getCenterZ()));
         }
         
-        return spawnPosition;
+        return spawnPos;
     }
     
     /**
@@ -2188,7 +2193,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return this.chunkProvider.getChunkAt(x >> 4, z >> 4).getBlockData(x, y, z);
     }
     
-    @SuppressWarnings("deprecation")
     public IBlockData getCapturedBlockType(int x, int y, int z) {
         for (BlockState previous : capturedBlockStates) {
             if (previous.getX() == x && previous.getY() == y && previous.getZ() == z) {
@@ -2198,7 +2202,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return null;
     }
     
-    @SuppressWarnings("deprecation")
     public boolean canBuild(Block block, BlockPosition position, boolean flag, EnumDirection direction, @Nullable Entity entity) {
         IBlockData iblockdata = this.getType(position);
         AxisAlignedBB box = flag ? null : block.getBlockData().c(this, position);
@@ -2352,10 +2355,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             this.everyoneSleeping();
         }
         
-        if (!this.isChunkLoaded(cX, cZ)) {
+        Chunk chunk;
+        if ((chunk = this.getChunkIfLoaded(cX, cZ)) == null) {
             return false;
         } else {
-            this.getChunkAt(cX, cZ).a(entity);
+            chunk.a(entity);
             this.entityList.add(entity);
             this.onEntityAdded(entity);
             return true;
@@ -2397,24 +2401,25 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         AsyncCatcher.catchOp("entity remove");
         
         entity.b(false);
+        
+        // It will get removed from the entity list after the tick if we are ticking
         entity.die();
+        
         if (entity instanceof EntityHuman) {
             this.players.remove(entity);
             this.everyoneSleeping();
         }
-
-        if (!guardEntityList) { // Spigot - It will get removed after the tick if we are ticking
-            int cX = entity.ab;
-            int cZ = entity.ad;
-
-            if (entity.aa) {
-                Chunk chunk = this.getChunkIfLoaded(cX, cZ);
-                if (chunk != null) chunk.b(entity);
+        
+        // It will get removed from the entity list after the tick if we are ticking
+        int index = this.entityList.indexOf(entity);
+        if (index != -1) {
+            if (index <= this.tickPosition) {
+                this.tickPosition--;
             }
             
-             this.entityList.remove(entity);
+            this.entityList.remove(index);
+            this.onEntityRemove(entity);
         }
-        this.onEntityRemove(entity);
     }
     
     @Deprecated
@@ -2923,6 +2928,13 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         }
         
         return list;
+    }
+    
+    /**
+     * Gets all entities within the specified AABB
+     */
+    public List<Entity> getEntities(AxisAlignedBB aabb) {
+        return this.getEntities((Entity) null, aabb, IEntitySelector.e);
     }
     
     /**
