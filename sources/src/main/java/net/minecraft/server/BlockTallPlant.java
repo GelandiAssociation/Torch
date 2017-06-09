@@ -3,6 +3,8 @@ package net.minecraft.server;
 import java.util.Random;
 import javax.annotation.Nullable;
 
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+
 public class BlockTallPlant extends BlockPlant implements IBlockFragilePlantElement {
 
     public static final BlockStateEnum<BlockTallPlant.EnumTallFlowerVariants> VARIANT = BlockStateEnum.of("variant", BlockTallPlant.EnumTallFlowerVariants.class);
@@ -53,7 +55,7 @@ public class BlockTallPlant extends BlockPlant implements IBlockFragilePlantElem
     protected void e(World world, BlockPosition blockposition, IBlockData iblockdata) {
         if (!this.f(world, blockposition, iblockdata)) {
             // CraftBukkit start
-            if (org.bukkit.craftbukkit.event.CraftEventFactory.callBlockPhysicsEvent(world, blockposition).isCancelled()) {
+            if (CraftEventFactory.callBlockPhysicsEvent(world, blockposition).isCancelled()) {
                 return;
             }
             // CraftBukkit end

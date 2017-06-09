@@ -2,6 +2,8 @@ package net.minecraft.server;
 
 import javax.annotation.Nullable;
 
+import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
+
 public abstract class NavigationAbstract {
 
     protected EntityInsentient a; public Entity getEntity() { return a; } // Paper - OBFHELPER
@@ -76,7 +78,7 @@ public abstract class NavigationAbstract {
         } else if (this.c != null && !this.c.b() && blockposition.equals(this.q)) {
             return this.c;
         } else {
-            if (!new com.destroystokyo.paper.event.entity.EntityPathfindEvent(getEntity().getBukkitEntity(), MCUtil.toLocation(getEntity().world, blockposition), null).callEvent()) { return null; } // Paper
+            if (!EntityPathfindEvent.of(getEntity().getBukkitEntity(), MCUtil.toLocation(getEntity().world, blockposition), null).callEvent()) { return null; } // Paper
             this.q = blockposition;
             float f = this.h();
 
@@ -102,7 +104,7 @@ public abstract class NavigationAbstract {
             if (this.c != null && !this.c.b() && blockposition.equals(this.q)) {
                 return this.c;
             } else {
-                if (!new com.destroystokyo.paper.event.entity.EntityPathfindEvent(getEntity().getBukkitEntity(), MCUtil.toLocation(entity.world, blockposition), entity.getBukkitEntity()).callEvent()) { return null; } // Paper
+                if (!EntityPathfindEvent.of(getEntity().getBukkitEntity(), MCUtil.toLocation(entity.world, blockposition), entity.getBukkitEntity()).callEvent()) { return null; } // Paper
                 this.q = blockposition;
                 float f = this.h();
 

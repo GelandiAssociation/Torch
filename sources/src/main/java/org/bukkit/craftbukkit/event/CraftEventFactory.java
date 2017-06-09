@@ -1094,7 +1094,7 @@ public class CraftEventFactory {
     
     public static BlockPhysicsEvent callBlockPhysicsEvent(World world, BlockPosition blockposition) {
     	org.bukkit.block.Block block = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
-		BlockPhysicsEvent event = new BlockPhysicsEvent(block, block.getTypeId());
+		BlockPhysicsEvent event = BlockPhysicsEvent.of(block, block.getTypeId());
 		world.getServer().getPluginManager().callEvent(event);
 		return event;
     }

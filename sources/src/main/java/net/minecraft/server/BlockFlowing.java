@@ -22,8 +22,9 @@ public class BlockFlowing extends BlockFluids {
         world.setTypeAndData(blockposition, b(this.material).getBlockData().set(BlockFlowing.LEVEL, iblockdata.get(BlockFlowing.LEVEL)), 2);
     }
 
+    @Override
     public void b(World world, BlockPosition blockposition, IBlockData iblockdata, Random random) {
-        int i = ((Integer) iblockdata.get(BlockFlowing.LEVEL)).intValue();
+        int i = iblockdata.get(BlockFlowing.LEVEL).intValue();
         byte b0 = 1;
 
         if (this.material == Material.LAVA && !world.worldProvider.l()) {
@@ -64,7 +65,7 @@ public class BlockFlowing extends BlockFluids {
 
                 if (iblockdata1.getMaterial().isBuildable()) {
                     i1 = 0;
-                } else if (iblockdata1.getMaterial() == this.material && ((Integer) iblockdata1.get(BlockFlowing.LEVEL)).intValue() == 0) {
+                } else if (iblockdata1.getMaterial() == this.material && iblockdata1.get(BlockFlowing.LEVEL).intValue() == 0) {
                     i1 = 0;
                 }
             }
@@ -82,7 +83,7 @@ public class BlockFlowing extends BlockFluids {
                 } else {
                     iblockdata = iblockdata.set(BlockFlowing.LEVEL, Integer.valueOf(i1));
                     world.setTypeAndData(blockposition, iblockdata, 2);
-                    world.a(blockposition, (Block) this, j);
+                    world.a(blockposition, this, j);
                     world.applyPhysics(blockposition, this, false);
                 }
             }
@@ -138,7 +139,7 @@ public class BlockFlowing extends BlockFluids {
 
                 // CraftBukkit start
                 if (!canFlowTo(world, source, org.bukkit.craftbukkit.block.CraftBlock.notchToBlockFace(enumdirection1))) { continue; } // Paper
-                BlockFromToEvent event = new BlockFromToEvent(source, org.bukkit.craftbukkit.block.CraftBlock.notchToBlockFace(enumdirection1));
+                BlockFromToEvent event = BlockFromToEvent.of(source, org.bukkit.craftbukkit.block.CraftBlock.notchToBlockFace(enumdirection1));
                 world.getServer().getPluginManager().callEvent(event);
 
                 if (!event.isCancelled()) {
@@ -182,7 +183,7 @@ public class BlockFlowing extends BlockFluids {
                 BlockPosition blockposition1 = blockposition.shift(enumdirection1);
                 IBlockData iblockdata = world.getType(blockposition1);
 
-                if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getMaterial() != this.material || ((Integer) iblockdata.get(BlockFlowing.LEVEL)).intValue() > 0)) {
+                if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getMaterial() != this.material || iblockdata.get(BlockFlowing.LEVEL).intValue() > 0)) {
                     if (!this.g(world, blockposition1.down(), iblockdata)) {
                         return i;
                     }
@@ -215,7 +216,7 @@ public class BlockFlowing extends BlockFluids {
             BlockPosition blockposition1 = blockposition.shift(enumdirection);
             IBlockData iblockdata = world.getType(blockposition1);
 
-            if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getMaterial() != this.material || ((Integer) iblockdata.get(BlockFlowing.LEVEL)).intValue() > 0)) {
+            if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getMaterial() != this.material || iblockdata.get(BlockFlowing.LEVEL).intValue() > 0)) {
                 int j;
 
                 if (this.g(world, blockposition1.down(), world.getType(blockposition1.down()))) {
@@ -268,9 +269,10 @@ public class BlockFlowing extends BlockFluids {
         return material != this.material && material != Material.LAVA && !this.g(world, blockposition, iblockdata);
     }
 
+    @Override
     public void onPlace(World world, BlockPosition blockposition, IBlockData iblockdata) {
         if (!this.e(world, blockposition, iblockdata)) {
-            world.a(blockposition, (Block) this, this.getFlowSpeed(world, blockposition)); // Paper
+            world.a(blockposition, this, this.getFlowSpeed(world, blockposition)); // Paper
         }
 
     }
@@ -301,7 +303,7 @@ public class BlockFlowing extends BlockFluids {
      * Paper - Data check method for fast draining
      */
     public int getData(World world, BlockPosition position) {
-        int data = this.getFluidLevel((IBlockAccess) world, position);
+        int data = this.getFluidLevel(world, position);
         return data < 8 ? data : 0;
     }
 
