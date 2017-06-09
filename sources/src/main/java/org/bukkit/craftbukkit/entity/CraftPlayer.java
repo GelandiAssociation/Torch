@@ -51,6 +51,7 @@ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerUnregisterChannelEvent;
 import org.bukkit.inventory.InventoryView.Property;
@@ -74,7 +75,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     private boolean scaledHealth = false;
     private double healthScale = 20;
     // Paper start
-    private org.bukkit.event.player.PlayerResourcePackStatusEvent.Status resourcePackStatus;
+    private PlayerResourcePackStatusEvent.Status resourcePackStatus;
     private String resourcePackHash;
     // Paper end
 
