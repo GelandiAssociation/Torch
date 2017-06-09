@@ -96,9 +96,6 @@ public class RestartCommand extends Command {
 
             // If the server hasn't stopped by now, assume worse case and kill
             closeSocket();
-            
-            System.out.println("Server stopped because the restart script '" + SpigotConfig.restartScript + "' does not exist!");
-
             System.exit(0);
         }
     }

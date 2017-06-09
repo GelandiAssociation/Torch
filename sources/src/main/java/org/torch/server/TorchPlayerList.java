@@ -1233,14 +1233,6 @@ public final class TorchPlayerList implements TorchReactor {
     }
 
     /**
-     * On LAN servers, returns the host's player data to be written to level.dat
-     */
-    @Deprecated
-    public NBTTagCompound getHostPlayerData() {
-        return null;
-    }
-
-    /**
      * Apply default game mode if sourcePlayer is null
      */
     public void setPlayerGamemodeBasedOnOther(EntityPlayer player, EntityPlayer sourcePlayer, World world) {

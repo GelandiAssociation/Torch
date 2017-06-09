@@ -11,6 +11,7 @@ import java.net.URLEncoder;
 import java.security.KeyPair;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
@@ -27,29 +28,34 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bukkit.Bukkit;
+import org.bukkit.World.Environment;
 import org.bukkit.craftbukkit.LoggerOutputStream;
 import org.bukkit.craftbukkit.Main;
 import org.bukkit.craftbukkit.util.Waitable;
 import org.bukkit.event.server.RemoteServerCommandEvent;
 import org.bukkit.event.server.ServerCommandEvent;
+import org.bukkit.event.world.WorldInitEvent;
 import org.spigotmc.SlackActivityAccountant;
 import org.spigotmc.SpigotConfig;
 import org.torch.api.Anaphase;
 import org.torch.server.cache.TorchUserCache;
 
+import com.destroystokyo.paper.PaperConfig;
 import com.destroystokyo.paper.utils.CachedSizeConcurrentLinkedQueue;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableFutureTask;
-import com.koloboke.collect.map.hash.HashObjObjMaps;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.GameProfileRepository;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
@@ -700,7 +706,6 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
     /**
      * Load all default worlds: world, world_nether and world_the_end
      */
-    @SuppressWarnings("deprecation")
     public void loadDefaultWorlds(String saveName, String worldName, long seed, WorldType worldtype, String generatorOptions) {
         this.convertMapIfNeeded(worldName);
         this.setUserMessage("menu.loadingLevel");
@@ -708,11 +713,11 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
         getMinecraftServer().worldServer = new WorldServer[3];
         int worldCount = 3;
 
-        for (int j = 0; j < worldCount; ++j) {
+        for (int index = 0; index < worldCount; index++) {
             WorldServer world;
             byte dimension = 0;
 
-            if (j == 1) {
+            if (index == 1) {
                 if (getAllowNether()) {
                     dimension = -1;
                 } else {
@@ -720,7 +725,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                 }
             }
 
-            if (j == 2) {
+            if (index == 2) {
                 if (craftServer.getAllowEnd()) {
                     dimension = 1;
                 } else {
@@ -728,28 +733,31 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                 }
             }
 
-            String worldType = org.bukkit.World.Environment.getEnvironment(dimension).toString().toLowerCase();
+            String worldType = Environment.getEnvironment(dimension).toString().toLowerCase();
             String name = (dimension == 0) ? saveName : saveName + "_" + worldType;
 
             org.bukkit.generator.ChunkGenerator gen = craftServer.getGenerator(name);
-            WorldSettings worldsettings = new WorldSettings(seed, this.getGameMode(), this.isGenerateStructures(), this.isHardcore(), worldtype);
-            worldsettings.setGeneratorSettings(worldName);
+            WorldSettings worldSettings = new WorldSettings(seed, this.getGameMode(), this.isGenerateStructures(), this.isHardcore(), worldtype);
+            worldSettings.setGeneratorSettings(worldName);
 
-            if (j == 0) {
-                IDataManager idatamanager = new ServerNBTManager(craftServer.getWorldContainer(), worldName, true, this.dataConverterManager);
-                WorldData worlddata = idatamanager.getWorldData();
-                if (worlddata == null) {
-                    worlddata = new WorldData(worldsettings, worldName);
+            if (index == 0) {
+                IDataManager dataManager = new ServerNBTManager(craftServer.getWorldContainer(), worldName, true, this.dataConverterManager);
+                WorldData worldData = dataManager.getWorldData();
+                if (worldData == null) {
+                    worldData = new WorldData(worldSettings, worldName);
                 }
-                // Migration did not rewrite the level.dat; This forces 1.8 to take the last loaded world as respawn (in this case the end)
-                worlddata.checkName(worldName);
+                
+                // Migration did not rewrite the level.dat;
+                // This forces 1.8 to take the last loaded world as respawn (in this case the end)
+                worldData.checkName(worldName);
+                
                 if (this.isDemoMode()) {
-                    world = (WorldServer) (new DemoWorldServer(getMinecraftServer(), idatamanager, worlddata, dimension, this.methodProfiler)).b();
+                    world = (WorldServer) (new DemoWorldServer(getMinecraftServer(), dataManager, worldData, dimension, this.methodProfiler)).b();
                 } else {
-                    world = (WorldServer) (new WorldServer(getMinecraftServer(), idatamanager, worlddata, dimension, this.methodProfiler, org.bukkit.World.Environment.getEnvironment(dimension), gen)).b();
+                    world = (WorldServer) (new WorldServer(getMinecraftServer(), dataManager, worldData, dimension, this.methodProfiler, Environment.getEnvironment(dimension), gen)).b();
                 }
-
-                world.a(worldsettings);
+                
+                world.a(worldSettings);
                 this.craftServer.scoreboardManager = new org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager(getMinecraftServer(), world.getScoreboard());
             } else {
                 String dim = "DIM" + dimension;
@@ -771,8 +779,8 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                             MinecraftServer.LOGGER.info("Success! To restore " + worldType + " in the future, simply move " + newWorld + " to " + oldWorld);
                             // Migrate world data too.
                             try {
-                                com.google.common.io.Files.copy(new File(new File(saveName), "level.dat"), new File(new File(name), "level.dat"));
-                                org.apache.commons.io.FileUtils.copyDirectory(new File(new File(saveName), "data"), new File(new File(name), "data"));
+                                Files.copy(new File(new File(saveName), "level.dat"), new File(new File(name), "level.dat"));
+                                FileUtils.copyDirectory(new File(new File(saveName), "data"), new File(new File(name), "data"));
                             } catch (IOException exception) {
                                 MinecraftServer.LOGGER.warn("Unable to migrate world data.");
                             }
@@ -787,17 +795,21 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                     }
                 }
 
-                IDataManager idatamanager = new ServerNBTManager(craftServer.getWorldContainer(), name, true, this.dataConverterManager);
+                IDataManager dataManager = new ServerNBTManager(craftServer.getWorldContainer(), name, true, this.dataConverterManager);
+                
                 // world =, saveName to dimension, worldName to name, added Environment and gen
-                WorldData worlddata = idatamanager.getWorldData();
-                if (worlddata == null) {
-                    worlddata = new WorldData(worldsettings, name);
+                WorldData worldData = dataManager.getWorldData();
+                if (worldData == null) {
+                    worldData = new WorldData(worldSettings, name);
                 }
-                worlddata.checkName(name); // CraftBukkit - Migration did not rewrite the level.dat; This forces 1.8 to take the last loaded world as respawn (in this case the end)
-                world = (WorldServer) new SecondaryWorldServer(getMinecraftServer(), idatamanager, dimension, this.worlds.get(0), this.methodProfiler, worlddata, org.bukkit.World.Environment.getEnvironment(dimension), gen).b();
+                
+                // Migration did not rewrite the level.dat;
+                // This forces 1.8 to take the last loaded world as respawn (in this case the end)
+                worldData.checkName(name);
+                world = (WorldServer) new SecondaryWorldServer(getMinecraftServer(), dataManager, dimension, this.worlds.get(0), this.methodProfiler, worldData, org.bukkit.World.Environment.getEnvironment(dimension), gen).b();
             }
 
-            this.craftServer.getPluginManager().callEvent(new org.bukkit.event.world.WorldInitEvent(world.getWorld()));
+            this.craftServer.getPluginManager().callEvent(new WorldInitEvent(world.getWorld()));
 
             world.addIWorldAccess(new TorchWorldManager(this, world, null));
             world.getWorldData().setGameType(this.getGameMode());
@@ -812,14 +824,13 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
         // Handle collideRule team for player collision toggle
         final Scoreboard scoreboard = this.getWorld().getScoreboard();
-        final java.util.Collection<String> toRemove = scoreboard.getTeams().stream().filter(team -> team.getName().startsWith("collideRule_")).map(ScoreboardTeam::getName).collect(java.util.stream.Collectors.toList());
+        final Collection<String> toRemove = scoreboard.getTeams().stream().filter(team -> team.getName().startsWith("collideRule_")).map(ScoreboardTeam::getName).collect(java.util.stream.Collectors.toList());
         for (String teamName : toRemove) {
             scoreboard.removeTeam(scoreboard.getTeam(teamName)); // Clean up after ourselves
         }
 
-        if (!com.destroystokyo.paper.PaperConfig.enablePlayerCollisions) {
-            // Note: CollideRuleTeamName Marked as @Anaphase
-            playerList.getServant().setCollideRuleTeamName(org.apache.commons.lang3.StringUtils.left("collideRule_" + this.getWorld().random.nextInt(), 16));
+        if (!PaperConfig.enablePlayerCollisions) {
+            playerList.getServant().setCollideRuleTeamName(StringUtils.left("collideRule_" + this.getWorld().random.nextInt(), 16));
             ScoreboardTeam collideTeam = scoreboard.createTeam(playerList.getServant().getCollideRuleTeamName());
 
             // Because we want to mimic them not being on a team at all
@@ -1847,11 +1858,11 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
         this.setPlayerList(new DedicatedPlayerList(this.getDedicatedServer()).getReactor());
         MinecraftServer.getServer().setPlayerList(this.playerList);
 
-        org.spigotmc.SpigotConfig.init((File) options.valueOf("spigot-settings"));
-        org.spigotmc.SpigotConfig.registerCommands();
+        SpigotConfig.init((File) options.valueOf("spigot-settings"));
+        SpigotConfig.registerCommands();
 
-        com.destroystokyo.paper.PaperConfig.init((File) options.valueOf("paper-settings"));
-        com.destroystokyo.paper.PaperConfig.registerCommands();
+        PaperConfig.init((File) options.valueOf("paper-settings"));
+        PaperConfig.registerCommands();
 
         logger.info("Generating keypair");
         this.setServerKeyPair(MinecraftEncryption.b());
@@ -1900,7 +1911,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
         String levelType = this.propertyManager.getString("level-type", "DEFAULT");
         String generatorSettings = this.propertyManager.getString("generator-settings", "");
         // The generator seed we final used
-        long generatorSeed = this.random.nextLong();
+        long generatorSeed = new Random().nextLong();
         if (!levelSeed.isEmpty()) {
             try {
                 long seed = Long.parseLong(levelSeed);

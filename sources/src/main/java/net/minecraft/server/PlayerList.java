@@ -390,8 +390,11 @@ public abstract class PlayerList implements org.torch.api.TorchServant {
         return TorchServer.getMinecraftServer();
     }
 
-    public NBTTagCompound t() {
-        return reactor.getHostPlayerData();
+    /**
+     * On LAN servers, returns the host's player data to be written to level.dat
+     */
+    public NBTTagCompound t() { // PAIL: getHostPlayerData
+        return null;
     }
 
     private void a(EntityPlayer entityplayer, EntityPlayer entityplayer1, World world) {

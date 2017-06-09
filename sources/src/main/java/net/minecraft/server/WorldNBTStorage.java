@@ -7,7 +7,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 // CraftBukkit start
@@ -96,18 +95,18 @@ public class WorldNBTStorage implements IDataManager, IPlayerFileData {
     @Override
     @Nullable
     public WorldData getWorldData() {
-        File file = new File(this.baseDir, "level.dat");
+        File data = new File(this.baseDir, "level.dat");
 
-        if (file.exists()) {
-            WorldData worlddata = WorldLoader.a(file, this.a);
+        if (data.exists()) {
+            WorldData worlddata = WorldLoader.a(data, this.a);
 
             if (worlddata != null) {
                 return worlddata;
             }
         }
 
-        file = new File(this.baseDir, "level.dat_old");
-        return file.exists() ? WorldLoader.a(file, this.a) : null;
+        data = new File(this.baseDir, "level.dat_old");
+        return data.exists() ? WorldLoader.a(data, this.a) : null;
     }
 
     @Override
@@ -118,23 +117,23 @@ public class WorldNBTStorage implements IDataManager, IPlayerFileData {
         nbttagcompound2.set("Data", nbttagcompound1);
 
         try {
-            File file = new File(this.baseDir, "level.dat_new");
-            File file1 = new File(this.baseDir, "level.dat_old");
-            File file2 = new File(this.baseDir, "level.dat");
+            File newData = new File(this.baseDir, "level.dat_new");
+            File oldData = new File(this.baseDir, "level.dat_old");
+            File saveData = new File(this.baseDir, "level.dat");
 
-            NBTCompressedStreamTools.a(nbttagcompound2, (new FileOutputStream(file)));
-            if (file1.exists()) {
-                file1.delete();
+            NBTCompressedStreamTools.a(nbttagcompound2, (new FileOutputStream(newData)));
+            if (oldData.exists()) {
+                oldData.delete();
             }
 
-            file2.renameTo(file1);
-            if (file2.exists()) {
-                file2.delete();
+            saveData.renameTo(oldData);
+            if (saveData.exists()) {
+                saveData.delete();
             }
 
-            file.renameTo(file2);
-            if (file.exists()) {
-                file.delete();
+            newData.renameTo(saveData);
+            if (newData.exists()) {
+                newData.delete();
             }
         } catch (Exception exception) {
             exception.printStackTrace();

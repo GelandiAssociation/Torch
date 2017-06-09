@@ -77,7 +77,7 @@ public class BlockDragonEgg extends Block {
                     // CraftBukkit start
                     org.bukkit.block.Block from = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
                     org.bukkit.block.Block to = world.getWorld().getBlockAt(blockposition1.getX(), blockposition1.getY(), blockposition1.getZ());
-                    BlockFromToEvent event = new BlockFromToEvent(from, to);
+                    BlockFromToEvent event = BlockFromToEvent.of(from, to);
                     org.bukkit.Bukkit.getPluginManager().callEvent(event);
 
                     if (event.isCancelled()) {

@@ -927,7 +927,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         try {
             CraftWorld world = ((WorldServer) servant).getWorld();
             if (world != null && !((WorldServer) servant).stopPhysicsEvent) { // Paper
-                BlockPhysicsEvent event = new BlockPhysicsEvent(world.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), CraftMagicNumbers.getId(block));
+                BlockPhysicsEvent event = BlockPhysicsEvent.of(world.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), CraftMagicNumbers.getId(block));
                 this.getCraftServer().getPluginManager().callEvent(event);
 
                 if (event.isCancelled()) {
@@ -1831,7 +1831,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         }
         
         entity.valid = true;
-        new EntityAddToWorldEvent(entity.getBukkitEntity()).callEvent(); // Paper
+        EntityAddToWorldEvent.of(entity.getBukkitEntity()).callEvent(); // Paper
     }
 
     public void onEntityRemove(Entity entity) {
@@ -1839,7 +1839,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             access.onEntityRemoved(entity);
         }
         
-        new EntityRemoveFromWorldEvent(entity.getBukkitEntity()).callEvent(); // Paper
+        EntityRemoveFromWorldEvent.of(entity.getBukkitEntity()).callEvent(); // Paper
         entity.valid = false;
     }
     

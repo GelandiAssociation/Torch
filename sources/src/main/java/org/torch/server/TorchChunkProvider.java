@@ -344,7 +344,7 @@ public final class TorchChunkProvider implements net.minecraft.server.IChunkProv
     }
 
     public boolean unloadChunk(Chunk chunk, boolean save) {
-        ChunkUnloadEvent event = new ChunkUnloadEvent(chunk.bukkitChunk, save);
+        ChunkUnloadEvent event = ChunkUnloadEvent.of(chunk.bukkitChunk, save);
         this.world.getServer().getPluginManager().callEvent(event);
         if (event.isCancelled()) return false;
         save = event.isSaveChunk();

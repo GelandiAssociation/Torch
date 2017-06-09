@@ -3,6 +3,8 @@ package net.minecraft.server;
 import java.util.Random;
 import javax.annotation.Nullable;
 
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+
 public class BlockPlant extends Block {
 
     protected static final AxisAlignedBB b = new AxisAlignedBB(0.30000001192092896D, 0.0D, 0.30000001192092896D, 0.699999988079071D, 0.6000000238418579D, 0.699999988079071D);
@@ -44,7 +46,7 @@ public class BlockPlant extends Block {
     protected void e(World world, BlockPosition blockposition, IBlockData iblockdata) {
         if (!this.f(world, blockposition, iblockdata)) {
             // CraftBukkit start
-            if (org.bukkit.craftbukkit.event.CraftEventFactory.callBlockPhysicsEvent(world, blockposition).isCancelled()) {
+            if (CraftEventFactory.callBlockPhysicsEvent(world, blockposition).isCancelled()) {
                 return;
             }
             // CraftBukkit end

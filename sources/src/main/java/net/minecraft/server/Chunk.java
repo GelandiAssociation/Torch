@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.common.collect.Lists; // CraftBukkit
 import org.bukkit.Server; // CraftBukkit
 import org.bukkit.craftbukkit.util.CraftMagicNumbers; // Paper
+import org.bukkit.event.world.ChunkLoadEvent;
 
 public class Chunk {
 
@@ -988,7 +989,7 @@ public class Chunk {
              * the World constructor. We can't reliably alter that, so we have
              * no way of creating a CraftWorld/CraftServer at that point.
              */
-            server.getPluginManager().callEvent(new org.bukkit.event.world.ChunkLoadEvent(bukkitChunk, newChunk));
+            server.getPluginManager().callEvent(ChunkLoadEvent.of(bukkitChunk, newChunk));
         }
 
         // Update neighbor counts

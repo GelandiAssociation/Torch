@@ -228,7 +228,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     protected abstract IChunkProvider n();
 
     public void a(WorldSettings worldsettings) {
-        this.worldData.d(true);
+        reactor.initialize(worldsettings);
     }
 
     @Deprecated
