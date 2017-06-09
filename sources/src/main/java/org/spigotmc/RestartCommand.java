@@ -39,17 +39,17 @@ public class RestartCommand extends Command {
             if (isRestarting) {
                 System.out.println("Attempting to restart with " + SpigotConfig.restartScript);
             } else {
-                System.out.println( "Startup script '" + SpigotConfig.restartScript + "' does not exist! Stopping server." );
+                System.out.println("Restart script '" + SpigotConfig.restartScript + "' does not exist! Stopping server.");
             }
-
+            
             // Stop the watchdog
             WatchdogThread.doStop();
-
+            
             shutdownServer(isRestarting);
         } catch (Throwable t) {
             t.printStackTrace();
         }
-
+        
         AsyncCatcher.enabled = true;
     }
 
@@ -57,7 +57,7 @@ public class RestartCommand extends Command {
     private static void shutdownServer(boolean isRestarting) {
         if (getServer().isMainThread()) {
             // Kick all players
-            for (EntityPlayer player : com.google.common.collect.ImmutableList.copyOf(getServer().getPlayerList().players)) {
+            for (EntityPlayer player : ImmutableList.copyOf(getServer().getPlayerList().players)) {
                 player.playerConnection.disconnect(SpigotConfig.restartMessage);
             }
 
@@ -83,9 +83,9 @@ public class RestartCommand extends Command {
             // Mark the server to shutdown at the end of the tick
             getServer().safeShutdown(isRestarting);
 
-            // wait 10 seconds to see if we're actually going to try shutdown
+            // Wait 9 seconds to see if we're actually going to try shutdown
             try {
-                Thread.sleep(10000);
+                Thread.sleep(9000);
             } catch (InterruptedException ignored) {
                 ;
             }
@@ -96,7 +96,10 @@ public class RestartCommand extends Command {
 
             // If the server hasn't stopped by now, assume worse case and kill
             closeSocket();
-            System.exit( 0 );
+            
+            System.out.println("Server stopped because the restart script '" + SpigotConfig.restartScript + "' does not exist!");
+
+            System.exit(0);
         }
     }
 
@@ -128,7 +131,7 @@ public class RestartCommand extends Command {
                     t.printStackTrace();
                 }
             });
-
+            
             shutdownHook.setDaemon(true);
             Runtime.getRuntime().addShutdownHook(shutdownHook);
             return true;

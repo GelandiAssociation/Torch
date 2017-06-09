@@ -15,8 +15,9 @@ import org.torch.utils.random.LightRNG;
  * This is useful if you want to quickly replace a Random variable with LightRNG
  * without breaking every code.
  */
+@SuppressWarnings("serial")
 public class LightRandom extends Random {
-    private final LightRNG light = new LightRNG(); // LightRNG
+    private static final LightRNG light = new LightRNG(); // LightRNG, static.
 
     public LightRandom() {}
 
