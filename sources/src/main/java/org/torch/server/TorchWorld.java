@@ -21,7 +21,6 @@ import org.spigotmc.ActivationRange;
 import org.spigotmc.AsyncCatcher;
 import org.spigotmc.SpigotWorldConfig;
 import org.torch.api.Async;
-import org.torch.api.IWorldAccess;
 import org.torch.api.TorchReactor;
 import org.torch.utils.collection.WrappedCollections;
 import com.destroystokyo.paper.PaperWorldConfig;
@@ -152,11 +151,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     /**
      * The path listener
      */
-    protected TorchNavigationListener navigator = new TorchNavigationListener(null);
+    protected NavigationListener navigator = new NavigationListener();
     /**
      * The world event listener
      */
-    protected Set<IWorldAccess> worldListeners;
+    protected List<IWorldAccess> worldListeners;
     /**
      * Handles chunk operations and caching
      */
@@ -233,14 +232,14 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     
     public final Map<Explosion.CacheKey, Float> explosionDensityCache = HashObjFloatMaps.newMutableMap();
     
-    public TorchWorld(IDataManager dataHandler, WorldData data, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env, World legacy) {
+    public TorchWorld(IDataManager dataHandler, WorldData data, WorldProvider worldprovider, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env, World legacy) {
         servant = legacy;
         
         spigotConfig = new SpigotWorldConfig(data.getName());
         paperConfig = new PaperWorldConfig(data.getName(), this.spigotConfig);
         generator = gen;
         
-        worldListeners = HashObjSets.newMutableSet(new IWorldAccess[] { this.navigator });
+        worldListeners = Lists.newArrayList(new IWorldAccess[] { this.navigator });
         calendar = Calendar.getInstance();
         allowMonsters = true;
         allowAnimals = true;
@@ -1474,14 +1473,14 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     
     public void notifyBlockUpdate(BlockPosition position, IBlockData oldBlock, IBlockData newBlock) {
         for (IWorldAccess access : worldListeners) {
-            access.notifyBlockUpdate(servant, position, oldBlock, newBlock);
+            access.a(servant, position, oldBlock, newBlock, 999); // notifyBlockUpdate
         }
     }
     
     @Async
     public void sendBlockBreakProgress(int breakerEntityId, BlockPosition position, int progress) {
         for (IWorldAccess access : worldListeners) {
-            access.sendBlockBreakProgress(breakerEntityId, position, progress);
+            access.b(breakerEntityId, position, progress); // sendBlockBreakProgress
         }
     }
     
@@ -1528,11 +1527,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         try {
             if (expect == null) {
                 for (IWorldAccess access : worldListeners) {
-                    access.playWorldEvent(type, position, data);
+                    access.a(type, position, data); // playWorldEvent
                 }
             } else {
                 for (IWorldAccess access : worldListeners) {
-                    access.playWorldEventNearbyExpect(expect, type, position, data);
+                    access.a(expect, type, position, data); // playWorldEventNearbyExpect
                 }
             }
             
@@ -1827,7 +1826,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     
     public void onEntityAdded(Entity entity) {
         for (IWorldAccess access : worldListeners) {
-            access.onEntityAdded(entity);
+            access.a(entity); // onEntityAdded
         }
         
         entity.valid = true;
@@ -1836,7 +1835,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
 
     public void onEntityRemove(Entity entity) {
         for (IWorldAccess access : worldListeners) {
-            access.onEntityRemoved(entity);
+            access.b(entity); // onEntityRemoved
         }
         
         EntityRemoveFromWorldEvent.of(entity.getBukkitEntity()).callEvent(); // Paper
@@ -1858,7 +1857,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     @Async
     public void playSoundNearbyExpect(@Nullable EntityHuman expect, SoundEffect effect, SoundCategory category, double x, double y, double z, float volume, float pitch) {
         for (IWorldAccess access : worldListeners) {
-            access.playSoundNearbyExpect(expect, effect, category, x, y, z, volume, pitch);
+            access.a(expect, effect, category, x, y, z, volume, pitch); // playSoundNearbyExpect
         }
     }
     

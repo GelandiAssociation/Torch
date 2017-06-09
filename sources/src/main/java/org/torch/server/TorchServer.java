@@ -811,7 +811,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
             this.craftServer.getPluginManager().callEvent(new WorldInitEvent(world.getWorld()));
 
-            world.addIWorldAccess(new TorchWorldManager(this, world, null));
+            world.addIWorldAccess(new WorldManager(getMinecraftServer(), world));
             world.getWorldData().setGameType(this.getGameMode());
 
             worlds.add(world);

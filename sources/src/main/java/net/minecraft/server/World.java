@@ -2,6 +2,8 @@ package net.minecraft.server;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
+
 import co.aikar.timings.WorldTimingsHandler;
 
 import java.util.ArrayList;
@@ -37,7 +39,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     /**
      * ANAPHASE FIELDS
      */
-    @Anaphase private final CraftWorld world;
+    @Anaphase private final org.bukkit.craftbukkit.CraftWorld world;
     @Anaphase public final WorldTimingsHandler timings;
     @Anaphase public PersistentCollection worldMaps;
     @Anaphase public WorldProvider worldProvider;
@@ -62,7 +64,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     public WorldData worldData;
     protected boolean isLoading;
     protected PersistentVillage villages;
-    protected Set<org.torch.api.IWorldAccess> worldListeners;
     protected final IntHashMap<Entity> entitiesById;
     public final Random random;
     public boolean allowMonsters;
@@ -72,6 +73,8 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     /**
      * OBFUSCATED FIELDS
      */
+    /** worldListeners */
+    protected List<IWorldAccess> u;
     /** unloadedEntities */
     protected final Set<Entity> f; // Paper - List -> Set
     /** addedTileEntities */
@@ -115,7 +118,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     /* // Only port if needed (for plugin compatibility)
     // CraftBukkit start Added the following
     public boolean pvpMode;
-    public boolean keepSpawnInMemory = true;
     public ChunkGenerator generator;
 
     public boolean captureBlockStates = false;
@@ -137,6 +139,8 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     
     public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
     public final com.destroystokyo.paper.PaperWorldConfig paperConfig; // Paper
+    
+    public boolean keepSpawnInMemory = true;
 
     public CraftWorld getWorld() {
         return world;
@@ -157,7 +161,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
-        reactor = new TorchWorld(idatamanager, worlddata, worldprovider, methodprofiler, flag, gen, env, this);
+        reactor = new TorchWorld(idatamanager, worlddata, worldprovider, flag, gen, env, this);
         
         methodProfiler = methodprofiler;
         worldProvider = worldprovider;
@@ -179,10 +183,10 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         dataManager = reactor.getDataManager();
         worldData = reactor.getWorldData();
         isLoading = reactor.isLoading();
-        worldListeners = reactor.getWorldListeners();
         entitiesById = reactor.getEntitiesById();
         random = reactor.getRandom();
         players = reactor.getPlayers();
+        keepSpawnInMemory = reactor.isKeepSpawnInMemory();
         
         a = reactor.getSeaLevel();
         b = reactor.getAddedTileEntities();
@@ -190,7 +194,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         L = reactor.getCalendar();
         f = reactor.getUnloadedEntities();
         M = reactor.isProcessingLoadedTiles();
-        t = reactor.getNavigator().getServant();
+        t = reactor.getNavigator();
         N = reactor.getWorldBorder();
         H = reactor.getLightUpdateBlocks();
         
@@ -203,6 +207,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         o = reactor.getRainingStrength();
         p = reactor.getPrevThunderingStrength();
         q = reactor.getThunderingStrength();
+        u = reactor.getWorldListeners();
         
         // IN CASE NPE
         world = new CraftWorld((WorldServer) this, gen, env);
@@ -534,7 +539,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     /**
      * Add a world event listener
      */
-    public void addIWorldAccess(org.torch.api.IWorldAccess access) {
+    public void addIWorldAccess(IWorldAccess access) {
         reactor.addWorldListener(access);
     }
 

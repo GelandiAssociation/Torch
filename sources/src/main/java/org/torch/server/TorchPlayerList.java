@@ -357,7 +357,7 @@ public final class TorchPlayerList implements TorchReactor {
 
         entityplayer.spawnIn(world);
         entityplayer.setPosition(loc.getX(), loc.getY(), loc.getZ());
-        entityplayer.setYawPitch(loc.getYaw(), loc.getPitch()); 
+        entityplayer.setRotation(loc.getYaw(), loc.getPitch()); // Set yaw, pitch
 
         WorldServer worldserver = this.server.getWorldServer(entityplayer.dimension);
         WorldData worlddata = worldserver.getWorldData();

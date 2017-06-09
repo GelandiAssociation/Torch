@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 @Getter
 public final class TorchWorldManager implements org.torch.api.IWorldAccess, TorchReactor {
     /** The legacy */
-    private final IWorldAccess servant;
+    private final WorldManager servant;
     
     /**
      * Reference to the TorchServer instance
@@ -22,7 +22,7 @@ public final class TorchWorldManager implements org.torch.api.IWorldAccess, Torc
      * */
     private final WorldServer world;
     
-    public TorchWorldManager(TorchServer server, WorldServer worldserver, @Nullable IWorldAccess legacy) {
+    public TorchWorldManager(TorchServer server, WorldServer worldserver, @Nullable WorldManager legacy) {
         servant = legacy;
         
         this.server = server;

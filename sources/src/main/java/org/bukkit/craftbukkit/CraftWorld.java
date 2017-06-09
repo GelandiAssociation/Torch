@@ -1385,6 +1385,7 @@ public class CraftWorld implements World {
     @Override
     public void setKeepSpawnInMemory(boolean keepLoaded) {
         world.getReactor().keepSpawnInMemory = keepLoaded;
+        world.keepSpawnInMemory = keepLoaded;
         // Grab the worlds spawn chunk
         BlockPosition chunkcoordinates = this.world.getSpawn();
         int chunkCoordX = chunkcoordinates.getX() >> 4;

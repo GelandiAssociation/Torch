@@ -292,36 +292,37 @@ public abstract class Entity implements ICommandListener {
 
     }
 
-    public void setYawPitch(float f, float f1) {
+    public void setRotation(float yaw, float pitch) { setYawPitch(yaw, pitch); } // ALIAS
+    protected void setYawPitch(float yaw, float pitch) { // Keep 'protected' for plugin compatibility
         // CraftBukkit start - yaw was sometimes set to NaN, so we need to set it back to 0
-        if (Float.isNaN(f)) {
-            f = 0;
+        if (Float.isNaN(yaw)) {
+            yaw = 0;
         }
 
-        if (f == Float.POSITIVE_INFINITY || f == Float.NEGATIVE_INFINITY) {
+        if (yaw == Float.POSITIVE_INFINITY || yaw == Float.NEGATIVE_INFINITY) {
             if (this instanceof EntityPlayer) {
                 this.world.getServer().getLogger().warning(this.getName() + " was caught trying to crash the server with an invalid yaw");
                 ((CraftPlayer) this.getBukkitEntity()).kickPlayer("Infinite yaw (Hacking?)"); //Spigot "Nope" -> Descriptive reason
             }
-            f = 0;
+            yaw = 0;
         }
 
         // pitch was sometimes set to NaN, so we need to set it back to 0
-        if (Float.isNaN(f1)) {
-            f1 = 0;
+        if (Float.isNaN(pitch)) {
+            pitch = 0;
         }
 
-        if (f1 == Float.POSITIVE_INFINITY || f1 == Float.NEGATIVE_INFINITY) {
+        if (pitch == Float.POSITIVE_INFINITY || pitch == Float.NEGATIVE_INFINITY) {
             if (this instanceof EntityPlayer) {
                 this.world.getServer().getLogger().warning(this.getName() + " was caught trying to crash the server with an invalid pitch");
                 ((CraftPlayer) this.getBukkitEntity()).kickPlayer("Infinite pitch (Hacking?)"); //Spigot "Nope" -> Descriptive reason
             }
-            f1 = 0;
+            pitch = 0;
         }
         // CraftBukkit end
 
-        this.yaw = f % 360.0F;
-        this.pitch = f1 % 360.0F;
+        this.yaw = yaw % 360.0F;
+        this.pitch = pitch % 360.0F;
     }
 
     public void setPosition(double d0, double d1, double d2) {
