@@ -2,8 +2,6 @@ package net.minecraft.server;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
-
 import co.aikar.timings.WorldTimingsHandler;
 
 import java.util.ArrayList;
@@ -43,6 +41,10 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     @Anaphase public final WorldTimingsHandler timings;
     @Anaphase public PersistentCollection worldMaps;
     @Anaphase public WorldProvider worldProvider;
+    /** Indicates if enemies are spawned or not */
+    @Anaphase public boolean allowMonsters;
+    /** Indicating whether we should spawn peaceful mobs */
+    @Anaphase public boolean allowAnimals;
     
     /**
      * NORMAL FIELDS
@@ -66,8 +68,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     protected PersistentVillage villages;
     protected final IntHashMap<Entity> entitiesById;
     public final Random random;
-    public boolean allowMonsters;
-    public boolean allowAnimals;
     //public final List<TileEntity> tileEntityList = Lists.newArrayList(); // Paper - remove unused list
     
     /**
@@ -177,8 +177,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         tileEntityListTick = reactor.getTickableTileEntities();
         tileEntityListUnload = reactor.getTileEntityToUnload();
         // players = reactor.getPlayers(); // Torch - List -> Set
-        allowMonsters = reactor.isAllowMonsters();
-        allowAnimals = reactor.isAllowAnimals();
         chunkProvider = reactor.getChunkProvider();
         dataManager = reactor.getDataManager();
         worldData = reactor.getWorldData();

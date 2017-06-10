@@ -52,6 +52,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
+
 import javax.annotation.Nullable;
 
 @Getter
@@ -173,14 +175,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     protected boolean isLoading;
 
     private final Calendar calendar;
-    /**
-     * Indicates if enemies are spawned or not
-     */
-    public boolean allowMonsters;
-    /**
-     * Indicating whether we should spawn peaceful mobs
-     */
-    public boolean allowAnimals;
 
     private boolean processingLoadedTiles;
     private final WorldBorder worldBorder;
@@ -241,8 +235,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         worldListeners = Lists.newArrayList(new IWorldAccess[] { this.navigator });
         calendar = Calendar.getInstance();
-        allowMonsters = true;
-        allowAnimals = true;
+        servant.allowMonsters = true;
+        servant.allowAnimals = true;
         lightUpdateBlocks = new int['\u8000'];
         
         dataManager = dataHandler;
@@ -295,14 +289,27 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return servant.getWorld();
     }
 
+    // The method added by Paper, however,
+    // getLoadedChunkAt(IChunkProvider) method will also mark the chunk as 'unloaded',
+    // but getChunkIfLoaded(ChunkProviderServer) method not does that, it's also the original NMS usage(like the below method)
     @Nullable
-    public Chunk getChunkIfLoaded(BlockPosition pos) {
-        return this.chunkProvider.getLoadedChunkAt(pos.getX() >> 4, pos.getZ() >> 4);
+    public Chunk getChunkIfLoaded(BlockPosition blockPos) {
+        return ((ChunkProviderServer) this.chunkProvider).getChunkIfLoaded(blockPos.getX() >> 4, blockPos.getZ() >> 4);
     }
 
     @Nullable
     public Chunk getChunkIfLoaded(int cx, int cz) {
         return ((ChunkProviderServer) this.chunkProvider).getChunkIfLoaded(cx, cz);
+    }
+    
+    public void applyIfChunkLoaded(BlockPosition blockPos, Consumer<Chunk> how) {
+        Chunk chunk = ((ChunkProviderServer) this.chunkProvider).getChunkIfLoaded(blockPos.getX() >> 4, blockPos.getZ() >> 4);
+        if (chunk != null) how.accept(chunk);
+    }
+
+    public void applyIfChunkLoaded(int cx, int cz, Consumer<Chunk> how) {
+        Chunk chunk = ((ChunkProviderServer) this.chunkProvider).getChunkIfLoaded(cx, cz);
+        if (chunk != null) how.accept(chunk);
     }
     
     public WorldChunkManager getWorldChunkManager() {
@@ -314,8 +321,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public void setSpawnFlags(boolean monsters, boolean animals) {
-        this.allowMonsters = monsters;
-        this.allowAnimals = animals;
+        servant.allowMonsters = monsters;
+        servant.allowAnimals = animals;
     }
     
     public void doTick() {
@@ -424,8 +431,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             int cX = unload.getChunkX();
             
             if (unload.isAddedToChunk()) {
-                Chunk chunk = this.getChunkIfLoaded(cX, cZ);
-                if (chunk != null) chunk.b(unload);
+                this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.b(unload));
             }
             
             this.onEntityRemove(unload);
@@ -476,8 +482,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 int cZ = entity.ad;
                 
                 if (entity.aa) {
-                    Chunk chunk = this.getChunkIfLoaded(cX, cZ);
-                    if (chunk != null) chunk.b(entity);
+                    this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.b(entity));
                 }
                 
                 guardEntityList = false;
@@ -534,8 +539,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             if (tickable.y()) {
                 this.tickableTileEntities.remove(tileTickPosition--);
                 
-                Chunk chunk = this.getChunkIfLoaded(tickable.getPosition());
-                if (chunk != null) chunk.d(tickable.getPosition());
+                BlockPosition pos = tickable.getPosition();
+                this.applyIfChunkLoaded(pos, chunk -> chunk.d(pos));
             }
 	}
 
@@ -545,17 +550,18 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         timings.tileEntityPending.startTiming();
         if (!this.addedTileEntities.isEmpty()) {
-            Chunk chunk;
             for (TileEntity added : this.addedTileEntities) {
                 if (!added.y()) {
-                    if ((chunk = this.getChunkIfLoaded(added.getPosition())) != null) {
-                        IBlockData iblockdata = chunk.getBlockData(added.getPosition());
+                    BlockPosition pos = added.getPosition();
+                    
+                    this.applyIfChunkLoaded(pos, chunk -> {
+                        IBlockData iblockdata = chunk.getBlockData(pos);
                         
-                        chunk.a(added.getPosition(), added);
-                        this.notifyBlockUpdate(added.getPosition(), iblockdata, iblockdata);
+                        chunk.a(pos, added);
+                        this.notifyBlockUpdate(pos, iblockdata, iblockdata);
                         
                         this.addTileEntity(added); // Paper - remove unused list
-                    }
+                    });
                 }
             }
             
@@ -591,12 +597,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
 
             if (entity.dead) {
-                int cx = entity.ab;
-                int cz = entity.ad;
+                int cX = entity.ab;
+                int cZ = entity.ad;
                 
                 if (entity.aa) {
-                    Chunk chunk = this.getChunkIfLoaded(cx, cz);
-                    if (chunk != null) chunk.b(entity);
+                    this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.b(entity));
                 }
 
                 this.entityList.remove(entity);
@@ -663,8 +668,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             
             if (!entity.isAddedToChunk() || entity.ab != coordX || entity.ac != coordY || entity.ad != coordZ) {
                 if (entity.isAddedToChunk()) {
-                    Chunk chunk = this.getChunkIfLoaded(entity.ab, entity.ad);
-                    if (chunk != null) chunk.a(entity, entity.ac);;
+                    this.applyIfChunkLoaded(entity.ab, entity.ad, chunk -> chunk.a(entity, entity.ac));
                 }
 
                 if (!entity.bv() && !this.isChunkLoaded(coordX, coordZ)) {
@@ -686,51 +690,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             
         }
     }
-    
-    public boolean checkNoEntityCollision(AxisAlignedBB aabb) {
-        return this.checkNoEntityCollision(aabb, (Entity) null);
-    }
-    
-    public boolean checkNoEntityCollision(AxisAlignedBB aabb, @Nullable Entity entity) {
-        List<Entity> list = this.getEntities(aabb);
-
-        for (int i = 0, size = list.size(); i < size; ++i) {
-            Entity entity1 = list.get(i);
-
-            if (!entity1.dead && entity1.i && entity1 != entity && (entity == null || entity1.x(entity))) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-    
-    // Paper start - Based on method above
-    /**
-     * @param axisalignedbb area to search within
-     * @param entity causing the action ex. block placer
-     * @return if there are no visible players colliding
-     */
-    public boolean checkNoVisiblePlayerCollisions(AxisAlignedBB aabb, @Nullable Entity entity) {
-        List<Entity> list = this.getEntities(aabb);
-        
-        for (int i = 0, size = list.size(); i < size; ++i) {
-            Entity entity1 = list.get(i);
-
-            if (entity instanceof EntityPlayer && entity1 instanceof EntityPlayer) {
-                if (!((EntityPlayer) entity).getBukkitEntity().canSee(((EntityPlayer) entity1).getBukkitEntity())) {
-                    continue;
-                }
-            }
-
-            if (!entity1.dead && entity1.blocksEntitySpawning()) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-    // Paper end
     
     public boolean isChunkGeneratedAt(int cx, int cz) {
         return this.isChunkLoaded(cx, cz) ? true : this.chunkProvider.e(cx, cz);
@@ -1138,8 +1097,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
 
     public void setLightFor(EnumSkyBlock lightType, BlockPosition position, int lightValue) {
         if (position.isValidLocation()) { // Paper
-            Chunk chunk = this.getChunkIfLoaded(position);
-            if (chunk != null) chunk.a(lightType, position, lightValue);
+            this.applyIfChunkLoaded(position, chunk -> chunk.a(lightType, position, lightValue));
         }
     }
     
@@ -1163,6 +1121,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         if (chunk != null) {
             return chunk.getBlockData(x, y, z);
         }
+        
         return null;
     }
     
@@ -1929,7 +1888,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         for (EntityHuman player : this.players) {
             if (!player.isSpectator() && player.affectsSpawning) { // Paper - Affects Spawning API
                 double sq = player.getOffsetSq(x, y, z);
-
+                
                 if (sq < range * range) {
                     return true;
                 }
@@ -2313,7 +2272,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             boolean isNpc = entity instanceof NPC;
 
             if (spawnReason != SpawnReason.CUSTOM) {
-                if (isAnimal && !allowAnimals || isMonster && !allowMonsters || isNpc && !getServer().isSpawnNPCs()) {
+                if (isAnimal && !servant.allowAnimals || isMonster && !servant.allowMonsters || isNpc && !getServer().isSpawnNPCs()) {
                     entity.dead = true;
                     return false;
                 }
@@ -2331,8 +2290,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             EntityExperienceOrb xp = (EntityExperienceOrb) entity;
             double radius = spigotConfig.expMerge;
             if (radius > 0) {
-                List<Entity> entities = this.getEntities(entity, entity.getBoundingBox().grow(radius, radius, radius));
-                for (Entity e : entities) {
+                this.applyEntities(entity, entity.getBoundingBox().grow(radius, radius, radius), e -> {
                     if (e instanceof EntityExperienceOrb) {
                         EntityExperienceOrb loopItem = (EntityExperienceOrb) e;
                         if (!loopItem.dead) {
@@ -2340,7 +2298,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                             loopItem.die();
                         }
                     }
-                }
+                });
             }
         }
         
@@ -2910,19 +2868,16 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return this.getEntitiesOf(entityType, box, IEntitySelector.e);
     }
     
-    public <T extends Entity> List<T> getEntitiesOf(Class<? extends T> entityType, AxisAlignedBB box, @Nullable Predicate<? super T> filter) {
-        int i = MathHelper.floor((box.a - 2.0D) / 16.0D);
-        int j = MathHelper.ceil((box.d + 2.0D) / 16.0D);
-        int k = MathHelper.floor((box.c - 2.0D) / 16.0D);
-        int l = MathHelper.ceil((box.f + 2.0D) / 16.0D);
+    public <T extends Entity> List<T> getEntitiesOf(Class<? extends T> entityType, AxisAlignedBB aabb, @Nullable Predicate<? super T> filter) {
         ArrayList<T> list = Lists.newArrayList();
-
-        for (int i1 = i; i1 < j; ++i1) {
-            for (int j1 = k; j1 < l; ++j1) {
-                Chunk chunk = this.getChunkIfLoaded(i1, j1);
-                if (chunk != null) {
-                    chunk.a(entityType, box, list, filter);
-                }
+        int minX = MathHelper.floor((aabb.a - 2.0D) / 16.0D);
+        int maxX = MathHelper.floor((aabb.d + 2.0D) / 16.0D);
+        int minZ = MathHelper.floor((aabb.c - 2.0D) / 16.0D);
+        int maxZ = MathHelper.floor((aabb.f + 2.0D) / 16.0D);
+        
+        for (int cx = minX; cx <= maxX; cx++) {
+            for (int cz = minZ; cz <= maxZ; cz++) {
+                this.applyIfChunkLoaded(cx, cz, chunk -> chunk.a(entityType, aabb, list, filter));
             }
         }
         
@@ -2946,22 +2901,103 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     /**
      * Gets all entities within the specified AABB excluding the one passed into it
      */
-    public List<Entity> getEntities(@Nullable Entity entity, AxisAlignedBB axisalignedbb, @Nullable Predicate<? super Entity> filter) {
+    public List<Entity> getEntities(@Nullable Entity entity, AxisAlignedBB aabb, @Nullable Predicate<? super Entity> filter) {
         ArrayList<Entity> list = Lists.newArrayList();
-        int minX = MathHelper.floor((axisalignedbb.a - 2.0D) / 16.0D);
-        int maxX = MathHelper.floor((axisalignedbb.d + 2.0D) / 16.0D);
-        int minZ = MathHelper.floor((axisalignedbb.c - 2.0D) / 16.0D);
-        int maxZ = MathHelper.floor((axisalignedbb.f + 2.0D) / 16.0D);
+        int minX = MathHelper.floor((aabb.a - 2.0D) / 16.0D);
+        int maxX = MathHelper.floor((aabb.d + 2.0D) / 16.0D);
+        int minZ = MathHelper.floor((aabb.c - 2.0D) / 16.0D);
+        int maxZ = MathHelper.floor((aabb.f + 2.0D) / 16.0D);
         
         for (int cx = minX; cx <= maxX; cx++) {
             for (int cz = minZ; cz <= maxZ; cz++) {
-                Chunk chunk = this.getChunkIfLoaded(cx, cz);
-                if (chunk != null) chunk.a(entity, axisalignedbb, list, filter);
+                this.applyIfChunkLoaded(cx, cz, chunk -> chunk.a(entity, aabb, list, filter));
             }
         }
         
         return list;
     }
+    
+    public boolean anyEntityAccepted(AxisAlignedBB aabb, Predicate<Entity> check) {
+        return this.anyEntityAccepted((Entity) null, aabb, check, IEntitySelector.e);
+    }
+    
+    public boolean anyEntityAccepted(@Nullable Entity entity, AxisAlignedBB aabb, Predicate<Entity> check, @Nullable Predicate<? super Entity> filter) {
+        int minX = MathHelper.floor((aabb.a - 2.0D) / 16.0D);
+        int maxX = MathHelper.floor((aabb.d + 2.0D) / 16.0D);
+        int minZ = MathHelper.floor((aabb.c - 2.0D) / 16.0D);
+        int maxZ = MathHelper.floor((aabb.f + 2.0D) / 16.0D);
+        
+        Chunk chunk;
+        for (int cx = minX; cx <= maxX; cx++) {
+            for (int cz = minZ; cz <= maxZ; cz++) {
+                chunk = this.getChunkIfLoaded(cx, cz);
+                if (chunk != null) {
+                    if (chunk.anyEntityAccepted(entity, aabb, check, filter)) return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    public void applyEntities(@Nullable Entity entity, AxisAlignedBB aabb, Consumer<Entity> apply) {
+        this.applyEntities(entity, aabb, apply, IEntitySelector.e);
+    }
+    
+    public void applyEntities(@Nullable Entity entity, AxisAlignedBB aabb, Consumer<Entity> apply, @Nullable Predicate<? super Entity> filter) {
+        int minX = MathHelper.floor((aabb.a - 2.0D) / 16.0D);
+        int maxX = MathHelper.floor((aabb.d + 2.0D) / 16.0D);
+        int minZ = MathHelper.floor((aabb.c - 2.0D) / 16.0D);
+        int maxZ = MathHelper.floor((aabb.f + 2.0D) / 16.0D);
+        
+        for (int cx = minX; cx <= maxX; cx++) {
+            for (int cz = minZ; cz <= maxZ; cz++) {
+                this.applyIfChunkLoaded(cx, cz, chunk -> chunk.applyEntities(entity, aabb, apply, filter));
+            }
+        }
+    }
+    
+    public boolean checkNoEntityCollision(AxisAlignedBB aabb) {
+        return this.checkNoEntityCollision(aabb, (Entity) null);
+    }
+    
+    public boolean checkNoEntityCollision(AxisAlignedBB aabb, @Nullable Entity entity) {
+        Predicate<Entity> noCollision = (each) -> {
+            if (!each.dead && each.i && each != entity && (entity == null || each.x(entity))) {
+                return true;
+            }
+            return false; // continue
+        };
+        
+        return !this.anyEntityAccepted(aabb, noCollision);
+    }
+    
+    // Paper start - Based on method above
+    /**
+     * @param axisalignedbb area to search within
+     * @param entity causing the action ex. block placer
+     * @return if there are no visible players colliding
+     */
+    public boolean checkNoVisiblePlayerCollisions(AxisAlignedBB aabb, @Nullable Entity entity) {
+        List<Entity> list = this.getEntities(aabb);
+        
+        for (int i = 0, size = list.size(); i < size; ++i) {
+            Entity entity1 = list.get(i);
+
+            if (entity instanceof EntityPlayer && entity1 instanceof EntityPlayer) {
+                if (!((EntityPlayer) entity).getBukkitEntity().canSee(((EntityPlayer) entity1).getBukkitEntity())) {
+                    continue;
+                }
+            }
+
+            if (!entity1.dead && entity1.blocksEntitySpawning()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    // Paper end
     
     public <T extends Entity> List<T> getEntitiesOf(Class<? extends T> entityType, Predicate<? super T> filter) {
         List<T> list = Lists.newArrayList();
@@ -2987,9 +3023,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return list;
     }
     
-    public void markChunkDirty(BlockPosition blockPosition) {
-        Chunk chunk = this.getChunkIfLoaded(blockPosition);
-        if (chunk != null) chunk.e();
+    public void markChunkDirty(BlockPosition blockPos) {
+        this.applyIfChunkLoaded(blockPos, chunk -> chunk.e());
     }
 
     public int countEntities(Class<?> entityType) {

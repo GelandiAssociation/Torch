@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Consumer;
+
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -926,8 +928,85 @@ public class Chunk {
                 }
             }
         }
-
     }
+    
+    // Torch start - logic copied from above
+    /**
+     * Search the entities in the aabb with the filter, returns true if there is any entity accepted the given predicate
+     */
+    public boolean anyEntityAccepted(@Nullable Entity entity, AxisAlignedBB aabb, Predicate<Entity> check, Predicate<? super Entity> filter) {
+        int minY = MathHelper.floor((aabb.b - 2.0D) / 16.0D);
+        int maxY = MathHelper.floor((aabb.e + 2.0D) / 16.0D);
+
+        minY = MathHelper.clamp(minY, 0, this.entitySlices.length - 1);
+        maxY = MathHelper.clamp(maxY, 0, this.entitySlices.length - 1);
+
+        for (int y = minY; y <= maxY; y++) {
+            if (!this.entitySlices[y].isEmpty()) {
+                if (filter == IEntitySelector.c && inventoryEntityCounts[y] <= 0) continue;
+                
+                for (Entity each : this.entitySlices[y]) {
+                    if (each.getBoundingBox().c(aabb) && each != entity) {
+                        if (filter == null || filter.apply(each)) {
+                            if (check.apply(each)) return true;
+                        }
+
+                        Entity[] aentity = each.aT();
+                        if (aentity != null) {
+                            for (Entity entity2 : aentity) {
+                                if (entity2 != entity && entity2.getBoundingBox().c(aabb) && (filter == null || filter.apply(entity2))) {
+                                    if (check.apply(entity2)) return true;
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+                
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Search the entities in the aabb with the filter, then apply the given consumer to them
+     */
+    public boolean applyEntities(@Nullable Entity entity, AxisAlignedBB aabb, Consumer<Entity> how, Predicate<? super Entity> filter) {
+        int minY = MathHelper.floor((aabb.b - 2.0D) / 16.0D);
+        int maxY = MathHelper.floor((aabb.e + 2.0D) / 16.0D);
+
+        minY = MathHelper.clamp(minY, 0, this.entitySlices.length - 1);
+        maxY = MathHelper.clamp(maxY, 0, this.entitySlices.length - 1);
+
+        for (int y = minY; y <= maxY; y++) {
+            if (!this.entitySlices[y].isEmpty()) {
+                if (filter == IEntitySelector.c && inventoryEntityCounts[y] <= 0) continue;
+                
+                for (Entity each : this.entitySlices[y]) {
+                    if (each.getBoundingBox().c(aabb) && each != entity) {
+                        if (filter == null || filter.apply(each)) {
+                            how.accept(each);
+                        }
+
+                        Entity[] aentity = each.aT();
+                        if (aentity != null) {
+                            for (Entity entity2 : aentity) {
+                                if (entity2 != entity && entity2.getBoundingBox().c(aabb) && (filter == null || filter.apply(entity2))) {
+                                    how.accept(entity2);
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+                
+            }
+        }
+        
+        return false;
+    }
+    // Torch end
 
     public <T extends Entity> void a(Class<? extends T> oclass, AxisAlignedBB axisalignedbb, List<T> list, Predicate<? super T> predicate) {
         int i = MathHelper.floor((axisalignedbb.b - 2.0D) / 16.0D);
