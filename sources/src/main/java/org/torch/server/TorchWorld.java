@@ -143,10 +143,10 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      */
     public final int DIST_HASH = 1013904223;
 
-    protected float prevRainingStrength;
+    public float prevRainingStrength;
     public float rainingStrength;
 
-    protected float prevThunderingStrength;
+    public float prevThunderingStrength;
     public float thunderingStrength;
 
     public final Random random = new Random();
@@ -334,11 +334,10 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         boolean doWeather = this.getGameRules().getBoolean("doWeatherCycle");
         if (doWeather) {
-            int i = this.worldData.z();
-            
-            if (i > 0) {
-                --i;
-                this.worldData.i(i);
+            int durationThunder = this.worldData.z();
+            if (durationThunder > 0) {
+                durationThunder--;
+                this.worldData.i(durationThunder);
                 this.worldData.setThunderDuration(this.worldData.isThundering() ? 1 : 2);
                 this.worldData.setWeatherDuration(this.worldData.hasStorm() ? 1 : 2);
             }
@@ -359,18 +358,17 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 }
             }
 
-            int k = this.worldData.getWeatherDuration();
-
-            if (k <= 0) {
+            int durationStorm = this.worldData.getWeatherDuration();
+            if (durationStorm <= 0) {
                 if (this.worldData.hasStorm()) {
                     this.worldData.setWeatherDuration(this.random.nextInt(12000) + 12000);
                 } else {
                     this.worldData.setWeatherDuration(this.random.nextInt(168000) + 12000);
                 }
             } else {
-                --k;
-                this.worldData.setWeatherDuration(k);
-                if (k <= 0) {
+                durationStorm--;
+                this.worldData.setWeatherDuration(durationStorm);
+                if (durationStorm <= 0) {
                     this.worldData.setStorm(!this.worldData.hasStorm());
                 }
             }
@@ -436,7 +434,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             
             this.onEntityRemove(unload);
         }
-
+        
         this.unloadedEntities.clear();
         this.tickPlayers();
         timings.entityRemoval.stopTiming();
@@ -573,7 +571,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public void tickPlayers() {
-        for (Entity entity : this.players) {
+        // Done in WorldServer
+        /* for (Entity entity : this.players) {
             Entity entity1 = entity.bB();
 
             if (entity1 != null) {
@@ -607,7 +606,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 this.entityList.remove(entity);
                 this.onEntityRemove(entity);
             }
-        }
+        } */
     }
     
     /**
@@ -1293,7 +1292,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public Explosion createExplosion(@Nullable Entity entity, double x, double y, double z, float strength, boolean flaming, boolean smoking) {
-        Explosion explosion = new Explosion(servant, entity, z, z, z, strength, smoking, smoking);
+        Explosion explosion = new Explosion(servant, entity, z, z, z, strength, flaming, smoking);
 
         explosion.a();
         explosion.a(true);

@@ -1332,7 +1332,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
                     ((EntityPlayer) player).tickWeather(); // Moved from World
                     ((EntityPlayer) player).setPlayerWeather((!flag ? WeatherType.DOWNFALL : WeatherType.CLEAR), false);
                     
-                    ((EntityPlayer) player).updateWeather(this.n, this.o, this.p, this.q);
+                    ((EntityPlayer) player).updateWeather(getReactor().prevRainingStrength, getReactor().rainingStrength, getReactor().prevThunderingStrength, getReactor().thunderingStrength);
                 }
             }
         } else {
@@ -1340,7 +1340,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
                 if (((EntityPlayer) player).world == this) {
                     ((EntityPlayer) player).tickWeather(); // Moved from World
                     
-                    ((EntityPlayer) player).updateWeather(this.n, this.o, this.p, this.q);
+                    ((EntityPlayer) player).updateWeather(getReactor().prevRainingStrength, getReactor().rainingStrength, getReactor().prevThunderingStrength, getReactor().thunderingStrength);
                 }
             }
             // Torch end

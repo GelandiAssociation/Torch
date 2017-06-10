@@ -45,8 +45,8 @@ public class PlayerInteractEvent extends PlayerEvent implements Cancellable, Mut
         }
         
         instance.player = who;
-        instance.action = action;
         instance.item = item;
+        instance.action = action;
         instance.blockClicked = clickedBlock;
         instance.blockFace = clickedFace;
         instance.hand = hand;

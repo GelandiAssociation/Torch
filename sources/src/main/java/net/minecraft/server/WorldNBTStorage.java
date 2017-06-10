@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.UUID;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 // CraftBukkit end
+import org.torch.api.Async;
 
 import static org.torch.server.TorchServer.logger;
 
@@ -149,21 +150,26 @@ public class WorldNBTStorage implements IDataManager, IPlayerFileData {
     /**
      * Writes the player data to disk from the specified player
      */
-    @Override
+    @Override @Async
     public void save(EntityHuman player) {
-        try {
-            NBTTagCompound compound = player.e(new NBTTagCompound()); // PAIL: writeToNBT
+        NBTTagCompound compound = player.e(new NBTTagCompound()); // PAIL: writeToNBT
+        
+        // Torch start
+        MCUtil.scheduleAsyncTask(() -> {
             File tempDataFile = new File(this.playerDir, player.getUUIDString() + ".dat.tmp");
             File dataFile = new File(this.playerDir, player.getUUIDString() + ".dat");
 
-            NBTCompressedStreamTools.a(compound, (new FileOutputStream(tempDataFile))); // PAIL: writeCompressed
+            try {
+                NBTCompressedStreamTools.a(compound, (new FileOutputStream(tempDataFile))); // PAIL: writeCompressed
+            } catch (Throwable t) {
+                logger.warn("Failed to save player data for {}", player.getName());
+            }
             
             if (dataFile.exists()) dataFile.delete();
             
             tempDataFile.renameTo(dataFile);
-        } catch (Throwable t) {
-            logger.warn("Failed to save player data for {}", player.getName());
-        }
+        });
+        // Torch end
     }
 
     @Override

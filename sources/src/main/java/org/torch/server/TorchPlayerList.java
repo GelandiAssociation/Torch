@@ -1197,7 +1197,7 @@ public final class TorchPlayerList implements TorchReactor {
         if (world.W()) {
             // Handle player weather
             player.setPlayerWeather(org.bukkit.WeatherType.DOWNFALL, false);
-            player.updateWeather(-world.o, world.o, -world.q, world.q);
+            player.updateWeather(-world.getReactor().prevRainingStrength, world.getReactor().rainingStrength, -world.getReactor().prevThunderingStrength, world.getReactor().thunderingStrength);
             // CraftBukkit end
         }
     }

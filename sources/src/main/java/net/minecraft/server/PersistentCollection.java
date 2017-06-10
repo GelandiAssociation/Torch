@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
+import org.torch.api.Async;
+
 public class PersistentCollection {
 
     private final IDataManager b;
@@ -88,6 +90,7 @@ public class PersistentCollection {
 
     }
 
+    @Async
     private void a(PersistentBase persistentbase) {
         if (this.b != null) {
             File file = this.b.getDataFile(persistentbase.id);
