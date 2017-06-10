@@ -716,8 +716,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     public void doTick() {
-        //this.t(); // The method only tick weather
-        reactor.tickWeather();
+        this.t(); // Link to tick weather in WorldServer
     }
 
     protected void I() {

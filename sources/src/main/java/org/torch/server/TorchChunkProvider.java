@@ -51,7 +51,7 @@ public final class TorchChunkProvider implements net.minecraft.server.IChunkProv
             }
             return lastChunkByPos = super.get(key);
         }
-
+        
         @Override
         public Chunk remove(long key) {
             if (lastChunkByPos != null && key == lastChunkByPos.chunkKey) {

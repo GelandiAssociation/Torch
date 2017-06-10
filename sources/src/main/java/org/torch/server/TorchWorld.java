@@ -325,10 +325,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         servant.allowAnimals = animals;
     }
     
-    public void doTick() {
-        this.tickWeather();
-    }
-    
     public void tickWeather() {
         if (!servant.worldProvider.m()) return;
         
@@ -631,8 +627,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             entity.lastPitch = entity.pitch;
             
             if (forceUpdate && entity.aa) {
-                ++entity.ticksLived;
-                ++co.aikar.timings.TimingHistory.activatedEntityTicks; // Paper
+                entity.ticksLived++;
+                TimingHistory.activatedEntityTicks++; // Paper
                 if (entity.isPassenger()) {
                     entity.aw();
                 } else {
@@ -670,10 +666,11 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                     this.applyIfChunkLoaded(entity.ab, entity.ad, chunk -> chunk.a(entity, entity.ac));
                 }
 
-                if (!entity.bv() && !this.isChunkLoaded(coordX, coordZ)) {
+                Chunk chunk = this.getChunkIfLoaded(coordX, coordZ);
+                if (!entity.bv() && chunk == null) {
                     entity.aa = false; // PAIL: addedToChunk
                 } else {
-                    this.getChunkAt(coordX, coordZ).a(entity); // PAIL: addEntity
+                    chunk.a(entity); // PAIL: addEntity
                 }
             }
             
@@ -2034,9 +2031,12 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     public TileEntity getTileEntity(BlockPosition pos) {
         if (pos.isInvalidYLocation()) return null;
         
-        TileEntity result = capturedTileEntities.get(pos);
+        if (capturedTileEntities.containsKey(pos)) {
+            return capturedTileEntities.get(pos);
+        }
         
-        if (result == null && this.processingLoadedTiles) {
+        TileEntity result = null;
+        if (this.processingLoadedTiles) {
             result = this.getAddedTileEntity(pos);
         }
         
@@ -2086,10 +2086,10 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public boolean addTileEntity(TileEntity tickable) {
-        if (tickable instanceof ITickable) {
-            return this.tickableTileEntities.add(tickable);
+        if (tickable instanceof ITickable && !this.tickableTileEntities.contains(tickable)) {
+            this.tickableTileEntities.add(tickable);
         }
-        return true; // TODO
+        return true;
     }
     
     public void addTileEntities(Collection<TileEntity> entities) {
