@@ -1,5 +1,8 @@
 package net.minecraft.server;
 
+import javax.annotation.concurrent.Immutable;
+
+@Immutable
 public enum EnumCreatureType {
 
     MONSTER(IMonster.class, 70, Material.AIR, false, false), CREATURE(EntityAnimal.class, 10, Material.AIR, true, true), AMBIENT(EntityAmbient.class, 15, Material.AIR, true, false), WATER_CREATURE(EntityWaterAnimal.class, 5, Material.WATER, true, false);

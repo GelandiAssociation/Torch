@@ -21,6 +21,8 @@ import org.spigotmc.ActivationRange;
 import org.spigotmc.AsyncCatcher;
 import org.spigotmc.SpigotWorldConfig;
 import org.torch.api.Async;
+import org.torch.api.MagicNumbers;
+import org.torch.api.MagicNumbers.BlockUpdater;
 import org.torch.api.TorchReactor;
 import org.torch.utils.collection.WrappedCollections;
 import com.destroystokyo.paper.PaperWorldConfig;
@@ -289,7 +291,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return servant.getWorld();
     }
 
-    // The method added by Paper, however,
+    // This method added by Paper, however,
     // getLoadedChunkAt(IChunkProvider) method will also mark the chunk as 'unloaded',
     // but getChunkIfLoaded(ChunkProviderServer) method not does that, it's also the original NMS usage(like the below method)
     @Nullable
@@ -425,7 +427,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             int cX = unload.getChunkX();
             
             if (unload.isAddedToChunk()) {
-                this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.b(unload));
+                this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.removeEntity(unload));
             }
             
             this.onEntityRemove(unload);
@@ -476,7 +478,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 int cZ = entity.ad;
                 
                 if (entity.aa) {
-                    this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.b(entity));
+                    this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.removeEntity(entity));
                 }
                 
                 guardEntityList = false;
@@ -596,7 +598,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 int cZ = entity.ad;
                 
                 if (entity.aa) {
-                    this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.b(entity));
+                    this.applyIfChunkLoaded(cX, cZ, chunk -> chunk.removeEntity(entity));
                 }
 
                 this.entityList.remove(entity);
@@ -776,7 +778,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     // CraftBukkit end
 
     public boolean setAir(BlockPosition blockposition) {
-        return this.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), 3);
+        return this.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), BlockUpdater.UPDATE_NOTIFY);
     }
 
     public boolean setAir(BlockPosition blockposition, boolean drop) {
@@ -791,12 +793,12 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 block.b(servant, blockposition, iblockdata, 0); // PAIL: dropBlockAsItem
             }
             
-            return this.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), 3);
+            return this.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), BlockUpdater.UPDATE_NOTIFY);
         }
     }
 
     public boolean setTypeUpdate(BlockPosition blockposition, IBlockData iblockdata) {
-        return this.setTypeAndData(blockposition, iblockdata, 3);
+        return this.setTypeAndData(blockposition, iblockdata, BlockUpdater.UPDATE_NOTIFY);
     }
 
     public void update(BlockPosition blockposition, Block block, boolean flag) {
@@ -1964,7 +1966,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public void everyoneSleeping() {
-        ;
+        servant.everyoneSleeping();
     }
     
     public DifficultyDamageScaler createDamageScaler(BlockPosition position) {
@@ -2232,8 +2234,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * Adds the specified Entity to the pending strike list
      */
     public boolean strikeLightning(Entity entity) {
-        this.lightingEntities.add(entity);
-        return true; // TODO
+        return this.lightingEntities.add(entity);
     }
     
     public boolean addEntity(Entity entity) {
@@ -2961,14 +2962,15 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     }
     
     public boolean checkNoEntityCollision(AxisAlignedBB aabb, @Nullable Entity entity) {
-        Predicate<Entity> noCollision = (each) -> {
+        Predicate<Entity> anyCollision = (each) -> {
             if (!each.dead && each.i && each != entity && (entity == null || each.x(entity))) {
+                // return if there is any entity collide with the aabb
                 return true;
             }
             return false; // continue
         };
         
-        return !this.anyEntityAccepted(aabb, noCollision);
+        return !this.anyEntityAccepted(aabb, anyCollision);
     }
     
     // Paper start - Based on method above
@@ -2978,23 +2980,22 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * @return if there are no visible players colliding
      */
     public boolean checkNoVisiblePlayerCollisions(AxisAlignedBB aabb, @Nullable Entity entity) {
-        List<Entity> list = this.getEntities(aabb);
-        
-        for (int i = 0, size = list.size(); i < size; ++i) {
-            Entity entity1 = list.get(i);
-
-            if (entity instanceof EntityPlayer && entity1 instanceof EntityPlayer) {
-                if (!((EntityPlayer) entity).getBukkitEntity().canSee(((EntityPlayer) entity1).getBukkitEntity())) {
-                    continue;
+        Predicate<Entity> anyCollision = (each) -> {
+            if (entity instanceof EntityPlayer && each instanceof EntityPlayer) {
+                if (!((EntityPlayer) entity).getBukkitEntity().canSee(((EntityPlayer) each).getBukkitEntity())) {
+                    return false; // hidden, continue
                 }
             }
-
-            if (!entity1.dead && entity1.blocksEntitySpawning()) {
-                return false;
+            
+            if (!each.dead && each.blocksEntitySpawning()) {
+                // return if there is any visible player collide with the aabb
+                return true;
             }
-        }
 
-        return true;
+            return false; // continue
+        };
+        
+        return !this.anyEntityAccepted(aabb, anyCollision);
     }
     // Paper end
     
@@ -3018,7 +3019,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 list.add((T) entity);
             }
         }
-
+        
         return list;
     }
     

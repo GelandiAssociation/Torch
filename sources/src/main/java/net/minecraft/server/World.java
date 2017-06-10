@@ -331,7 +331,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     public boolean setTypeUpdate(BlockPosition blockposition, IBlockData iblockdata) {
-        return this.setTypeAndData(blockposition, iblockdata, 3);
+        return reactor.setTypeUpdate(blockposition, iblockdata);
     }
 
     public void notify(BlockPosition blockposition, IBlockData iblockdata, IBlockData iblockdata1, int i) {
@@ -348,7 +348,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
 
     // PAIL: markBlockRangeForRenderUpdate (client-side only)
     public void b(BlockPosition blockposition, BlockPosition blockposition1) {
-        //this.b(blockposition.getX(), blockposition.getY(), blockposition.getZ(), blockposition1.getX(), blockposition1.getY(), blockposition1.getZ());
+        this.b(blockposition.getX(), blockposition.getY(), blockposition.getZ(), blockposition1.getX(), blockposition1.getY(), blockposition1.getZ());
     }
 
     // PAIL: markBlockRangeForRenderUpdate (client-side only)
@@ -982,7 +982,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     // Calls the method that checks to see if players are sleeping
     // Called by CraftPlayer.setPermanentSleeping()
     public void checkSleepStatus() {
-        reactor.everyoneSleeping();
+        everyoneSleeping();
     }
     // CraftBukkit end
 

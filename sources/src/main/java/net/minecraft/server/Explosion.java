@@ -15,6 +15,8 @@ import javax.annotation.Nullable;
 // CraftBukkit start
 import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.torch.api.MagicNumbers;
+import org.torch.api.MagicNumbers.BlockUpdater;
 import org.torch.utils.random.LightRandom;
 import org.bukkit.Location;
 import org.bukkit.event.block.BlockExplodeEvent;
@@ -262,7 +264,7 @@ public class Explosion {
                         block.dropNaturally(this.world, coords, this.world.getType(coords), yield, 0);
                     }
                     
-                    this.world.setTypeAndData(coords, Blocks.AIR.getBlockData(), 3);
+                    this.world.setTypeAndData(coords, Blocks.AIR.getBlockData(), BlockUpdater.UPDATE_NOTIFY);
                     block.wasExploded(this.world, coords, this);
                 }
                 

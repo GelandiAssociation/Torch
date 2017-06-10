@@ -53,7 +53,7 @@ public class Chunk {
     private int x;
     private final ConcurrentLinkedQueue<BlockPosition> y;
     public boolean d; public void setShouldUnload(boolean unload) { this.d = unload; } public boolean isUnloading() { return d; } // Paper - OBFHELPER
-    public HashObjIntMap<Class> entityCount = HashObjIntMaps.getDefaultFactory().newMutableMap(); // Spigot
+    public HashObjIntMap<Class> entityCount = HashObjIntMaps.newMutableMap(); // Spigot
 
     // Paper start
     // Track the number of minecarts and items
@@ -670,6 +670,7 @@ public class Chunk {
         // Spigot end
     }
 
+    public void removeEntity(Entity entity) { b(entity); } // OBFHELPER
     public void b(Entity entity) {
         this.a(entity, entity.ac);
     }
