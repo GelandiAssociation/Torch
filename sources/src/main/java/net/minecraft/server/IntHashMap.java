@@ -50,6 +50,7 @@ public class IntHashMap<V> {
         return null;
     }
 
+    public void put(int key, V value) { a(key, value); } // OBFHELPER
     public void a(int i, V v0) {
         int j = g(i);
         int k = a(j, this.a.length);
@@ -104,6 +105,7 @@ public class IntHashMap<V> {
 
     }
 
+    @Nullable public V remove(int key) { return d(key); } // OBFHELPER
     @Nullable
     public V d(int i) {
         IntHashMap.IntHashMapEntry<V> inthashmap_inthashmapentry = this.e(i);

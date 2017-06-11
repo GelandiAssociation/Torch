@@ -2,6 +2,8 @@ package org.torch.server;
 
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
+
 import javax.annotation.Nullable;
 
 import lombok.Getter;
@@ -32,31 +34,31 @@ public final class TorchCreatureSpawner implements TorchReactor {
     private static int RANGE;
 
     /** The chunk area covered by each player, vanilla 17x17 */
-    private static int CHUNKS_PER_PLAYER = (RANGE * 2 + 1) * (RANGE * 2 + 1);
+    private static int CHUNKS_PER_PLAYER;
 
     public TorchCreatureSpawner(@Nullable SpawnerCreature legacy) {
         servant = legacy;
     }
 
     /** Returns entity count only from chunks being processed in spawnableChunks */
-    public int getEntityCount(WorldServer server, Class<?> creatureType) {
+    public int getEntityCount(TorchWorld world, Class<?> creatureType) {
         // Paper - use entire world, not just active chunks. Spigot broke vanilla expectations.
-        return server
+        return world
                 .getChunkProviderServer()
                 .chunks.values()
                 .parallelStream()
-                .collect(java.util.stream.Collectors.summingInt(chunk -> chunk.entityCount.getOrDefault(creatureType, 0)));
+                .collect(Collectors.summingInt(chunk -> chunk.entityCount.getOrDefault(creatureType, 0)));
     }
 
     /**
      * Adds all chunks within the spawn radius of the players to spawnableChunks
      * Returns number of spawnable chunks
      */
-    public int findChunksForSpawning(WorldServer world, boolean spawnHostileCreatures, boolean spawnPassiveCreatures, boolean spawnAnimals) {
+    public int findChunksForSpawning(TorchWorld world, boolean spawnHostileCreatures, boolean spawnPassiveCreatures, boolean spawnAnimals) {
         // Paper - At least until we figure out what is calling this async
         AsyncCatcher.catchOp("check for eligible spawn chunks");
 
-        if ((!spawnHostileCreatures && !spawnPassiveCreatures) || world.getReactor().players.isEmpty()) return 0;
+        if ((!spawnHostileCreatures && !spawnPassiveCreatures) || world.players.isEmpty()) return 0;
 
         this.spawnableChunks.clear();
         int foundChunks = 0;
@@ -69,7 +71,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
             CHUNKS_PER_PLAYER = (RANGE * 2 + 1) * (RANGE * 2 + 1);
         }
 
-        for (final EntityHuman player : world.getReactor().players) {
+        for (final EntityHuman player : world.players) {
             if (player.isSpectator() || !player.affectsSpawning) continue;
 
             final int centerX = MathHelper.floor(player.locX / 16.0D);
@@ -94,22 +96,24 @@ public final class TorchCreatureSpawner implements TorchReactor {
 
         int spawnableChunks = 0;
         BlockPosition spawnPoint = world.getSpawn();
+        
+        MutableBlockPosition currentPos = new BlockPosition.MutableBlockPosition();
 
         for (EnumCreatureType type : EnumCreatureType.values()) {
             // CraftBukkit - use per-world spawn limits
             int spawnLimit = type.getMaxNumberOfCreature();
             switch (type) {
                 case MONSTER:
-                    spawnLimit = world.getWorld().getMonsterSpawnLimit();
+                    spawnLimit = world.getCraftWorld().getMonsterSpawnLimit();
                     break;
                 case CREATURE:
-                    spawnLimit = world.getWorld().getAnimalSpawnLimit();
+                    spawnLimit = world.getCraftWorld().getAnimalSpawnLimit();
                     break;
                 case WATER_CREATURE:
-                    spawnLimit = world.getWorld().getWaterAnimalSpawnLimit();
+                    spawnLimit = world.getCraftWorld().getWaterAnimalSpawnLimit();
                     break;
                 case AMBIENT:
-                    spawnLimit = world.getWorld().getAmbientSpawnLimit();
+                    spawnLimit = world.getCraftWorld().getAmbientSpawnLimit();
                     break;
             }
 
@@ -118,8 +122,6 @@ public final class TorchCreatureSpawner implements TorchReactor {
 
             if ((!type.isPeaceful() || spawnPassiveCreatures) && (type.isPeaceful() || spawnHostileCreatures) && (!type.isAnimal() || spawnAnimals)
                     && ((mobCount = getEntityCount(world, type.a())) <= spawnLimit * foundChunks / CHUNKS_PER_PLAYER)) {
-
-                MutableBlockPosition currentPos = new BlockPosition.MutableBlockPosition();
 
                 int mobLimit = (spawnLimit * foundChunks / 256) - mobCount + 1; // Spigot - up to 1 more than limit
 
@@ -208,7 +210,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
         return spawnableChunks;
     }
 
-    public static BlockPosition createRandomPosition(World world, int chunkX, int chunkZ) {
+    public static BlockPosition createRandomPosition(TorchWorld world, int chunkX, int chunkZ) {
         Chunk chunk = world.getChunkAt(chunkX, chunkZ);
         int x = chunkX << 4 + world.random.nextInt(16);
         int z = chunkZ << 4 + world.random.nextInt(16);
@@ -224,7 +226,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
     /**
      * Returns whether or not the specified creature type can spawn at the specified location
      */
-    public static boolean canCreatureTypeSpawnAtLocation(EnumEntityPositionType type, World world, BlockPosition position) {
+    public static boolean canCreatureTypeSpawnAtLocation(EnumEntityPositionType type, TorchWorld world, BlockPosition position) {
         if (!world.getWorldBorder().a(position)) return false;
 
         IBlockData blockType = world.getType(position);
@@ -246,7 +248,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
     /**
      * Called during chunk generation to spawn initial creatures
      */
-    public static void performWorldGenerateSpawning(World world, BiomeBase biome, int i, int j, int k, int l, Random random) {
+    public static void performWorldGenerateSpawning(TorchWorld world, BiomeBase biome, int i, int j, int k, int l, Random random) {
         List<BiomeMeta> spawnableTypes = biome.getMobs(EnumCreatureType.CREATURE);
 
         if (spawnableTypes.isEmpty()) return;
@@ -292,7 +294,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
         }
     }
 
-    private static EntityInsentient createCreature(final World world, final Class<?> entityClass) {
+    private static EntityInsentient createCreature(final TorchWorld world, final Class<?> entityClass) {
         try {
             return (EntityInsentient) entityClass.getConstructor(World.class).newInstance(world);
         } catch (final Throwable t) {

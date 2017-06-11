@@ -1,7 +1,7 @@
 package net.minecraft.server;
 
 public class SecondaryWorldServer extends WorldServer {
-
+    /** WorldServer instance */
     private final WorldServer a;
 
     // CraftBukkit start - Add WorldData, Environment and ChunkGenerator arguments
@@ -44,25 +44,34 @@ public class SecondaryWorldServer extends WorldServer {
 
     // protected void a() {} // CraftBukkit
 
+    /** PAIL: init */
+    @Override
     public World b() {
         this.worldMaps = this.a.X();
         this.scoreboard = this.a.getScoreboard();
         this.B = this.a.ak();
-        String s = PersistentVillage.a(this.worldProvider);
-        PersistentVillage persistentvillage = (PersistentVillage) this.worldMaps.get(PersistentVillage.class, s);
-
-        if (persistentvillage == null) {
+        
+        String fileNameForProvider = PersistentVillage.a(this.worldProvider);
+        PersistentVillage villages = (PersistentVillage) this.worldMaps.get(PersistentVillage.class, fileNameForProvider);
+        
+        if (villages == null) {
             this.villages = new PersistentVillage(this);
-            this.worldMaps.a(s, this.villages);
+            this.worldMaps.a(fileNameForProvider, this.villages);
         } else {
-            this.villages = persistentvillage;
-            this.villages.a((World) this);
+            this.villages = villages;
+            this.villages.a(this);
         }
-
+        
         return super.b(); // CraftBukkit
     }
 
+    /**
+     * <b>PAIL: saveAdditionalData</b>
+     * <p>
+     * Called during saving of a world to give children worlds a chance to save additional data.
+     * Only used to save WorldProviderEnd's data in Vanilla.
+     */
     public void c() {
-        this.worldProvider.r();
+        this.worldProvider.r(); // PAIL: onWorldSave
     }
 }

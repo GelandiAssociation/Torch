@@ -45,11 +45,16 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     @Anaphase public boolean allowMonsters;
     /** Indicating whether we should spawn peaceful mobs */
     @Anaphase public boolean allowAnimals;
+    /** lootTable */
+    @Anaphase protected LootTableRegistry B; public LootTableRegistry getLootTable() { return B; } public void setLootTable(LootTableRegistry lootTable) { B = lootTable; }
+    @Anaphase
+    public PersistentVillage villages;
+    @Anaphase public Scoreboard scoreboard;
     
     /**
      * NORMAL FIELDS
      */
-    @Getter private final TorchWorld reactor;
+    @Getter final TorchWorld reactor;
     public final boolean isClientSide = false;
     public ArrayList<BlockState> capturedBlockStates;
     public Map<BlockPosition, TileEntity> capturedTileEntities;
@@ -60,12 +65,10 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     private final Set<TileEntity> tileEntityListUnload;
     public final List<EntityHuman> players;
     public final MethodProfiler methodProfiler;
-    public Scoreboard scoreboard;
     protected IChunkProvider chunkProvider;
     protected final IDataManager dataManager;
     public WorldData worldData;
     protected boolean isLoading;
-    protected PersistentVillage villages;
     protected final IntHashMap<Entity> entitiesById;
     public final Random random;
     //public final List<TileEntity> tileEntityList = Lists.newArrayList(); // Paper - remove unused list
@@ -108,8 +111,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     protected NavigationListener t;
     /** processingLoadedTiles */
     private boolean M;
-    /** lootTable */
-    protected LootTableRegistry B;
     /** worldBorder */
     private final WorldBorder N;
     /** lightUpdateBlocks */
@@ -161,7 +162,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
-        reactor = new TorchWorld(idatamanager, worlddata, worldprovider, flag, gen, env, this);
+        reactor = new TorchWorld(idatamanager, worlddata, worldprovider, flag, gen, env);
         
         methodProfiler = methodprofiler;
         worldProvider = worldprovider;
@@ -596,7 +597,9 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         reactor.tickEntities();
     }
 
-    protected void l() {} // tickPlayers
+    protected void l() {
+        reactor.tickPlayers();
+    }
 
     public boolean a(TileEntity tileentity) {
         return reactor.addTileEntity(tileentity);
@@ -954,7 +957,9 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         return true;
     }
 
-    public void broadcastEntityEffect(Entity entity, byte b0) {}
+    public void broadcastEntityEffect(Entity entity, byte b0) {
+        reactor.broadcastEntityEffect(entity, b0);
+    }
 
     public IChunkProvider getChunkProvider() {
         return reactor.getChunkProvider();
@@ -976,7 +981,9 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         return reactor.getGameRules();
     }
 
-    public void everyoneSleeping() {}
+    public void everyoneSleeping() {
+        reactor.checkEveryoneSleeping();
+    }
 
     // CraftBukkit start
     // Calls the method that checks to see if players are sleeping

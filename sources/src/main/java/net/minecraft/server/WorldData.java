@@ -243,6 +243,7 @@ public class WorldData {
         this.B = false;
     }
 
+    /** PAIL: initialFromWorldSettings */
     public void a(WorldSettings worldsettings) {
         this.e = worldsettings.d();
         this.x = worldsettings.e();

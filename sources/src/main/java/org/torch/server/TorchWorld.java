@@ -6,16 +6,25 @@ import net.minecraft.server.*;
 import net.minecraft.server.BlockPosition.PooledBlockPosition;
 import net.minecraft.server.EnumDirection.EnumDirectionLimit;
 import net.minecraft.server.PacketPlayOutWorldBorder.EnumWorldBorderAction;
+import net.minecraft.server.WorldServer.BlockActionDataList;
 
 import org.bukkit.Bukkit;
+import org.bukkit.WeatherType;
 import org.bukkit.block.BlockState;
 import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.CraftTravelAgent;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
+import org.bukkit.craftbukkit.generator.NetherChunkGenerator;
+import org.bukkit.craftbukkit.generator.NormalChunkGenerator;
+import org.bukkit.craftbukkit.generator.SkyLandsChunkGenerator;
 import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+import org.bukkit.craftbukkit.util.HashTreeSet;
 import org.bukkit.event.block.BlockCanBuildEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
+import org.bukkit.event.weather.LightningStrikeEvent;
 import org.bukkit.generator.ChunkGenerator;
 import org.spigotmc.ActivationRange;
 import org.spigotmc.AsyncCatcher;
@@ -34,16 +43,19 @@ import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.koloboke.collect.map.hash.HashObjFloatMaps;
 import com.koloboke.collect.map.hash.HashObjObjMaps;
 import com.koloboke.collect.set.hash.HashObjSets;
 
+import co.aikar.timings.TimedChunkGenerator;
 import co.aikar.timings.TimingHistory;
 import co.aikar.timings.WorldTimingsHandler;
 
 import static org.torch.server.TorchServer.logger;
 import static org.torch.server.TorchServer.getServer;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -55,15 +67,16 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 
 @Getter
-public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlockAccess {
+public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskHandler {
     /**
      * The legacy world instance
      */
-    private final World servant;
+    private final WorldServer servant;
     
     private static final EnumDirection[] BLOCK_FACES = {EnumDirection.DOWN, EnumDirection.UP, EnumDirection.EAST, EnumDirection.NORTH, EnumDirection.SOUTH, EnumDirection.WEST};
     
@@ -228,7 +241,61 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     
     public final Map<Explosion.CacheKey, Float> explosionDensityCache = HashObjFloatMaps.newMutableMap();
     
-    public TorchWorld(IDataManager dataHandler, WorldData data, WorldProvider worldprovider, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env, World legacy) {
+    public int dimension;
+    
+    ///////// WorldServer
+    /**
+     * The server instance
+     */
+    private final TorchServer server;
+    
+    /**
+     * {@link PaperWorldConfig#firePhysicsEventForRedstone}
+     */
+    public boolean stopPhysicsEvent = false;
+    
+    /**
+     * The entity tracker for this server world
+     */
+    public EntityTracker tracker;
+    /** 
+     * The player chunk map for this server world
+     */
+    private final PlayerChunkMap playerChunkMap;
+    /**
+     * All work to do in future ticks
+     */
+    private final HashTreeSet<NextTickListEntry> nextTickList = new HashTreeSet<NextTickListEntry>();
+    
+    private final Map<UUID, Entity> entitiesByUUID = HashObjObjMaps.newMutableMap();
+    /**
+     * Whether level saving is disabled or not
+     */
+    public boolean savingDisabled;
+    
+    /** Is false if there are no players */
+    private boolean allPlayersSleeping;
+    
+    private int emptyTime;
+    /**
+     * The teleporter to use when the entity is being transferred into the dimension
+     */
+    private final PortalTravelAgent portalTravelAgent;
+    
+    private final TorchCreatureSpawner spawnerCreature = new SpawnerCreature().getReactor();
+    
+    protected final VillageSiege siegeManager;
+    
+    private final BlockActionDataList<BlockActionData>[] blockEventQueue = new BlockActionDataList[] { new BlockActionDataList<BlockActionData>(), new BlockActionDataList<BlockActionData>() };
+    private int blockEventCacheIndex;
+    
+    private final List<NextTickListEntry> pendingTickListEntriesThisTick = Lists.newArrayList();
+    
+    public TorchWorld(IDataManager dataHandler, WorldData data, WorldProvider worldprovider, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
+        this(-1, dataHandler, data, worldprovider, flag, gen, env, null);
+    }
+    
+    public TorchWorld(int worldId, IDataManager dataHandler, WorldData data, WorldProvider worldprovider, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env, WorldServer legacy) {
         servant = legacy;
         
         spigotConfig = new SpigotWorldConfig(data.getName());
@@ -246,7 +313,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         worldBorder = worldprovider.getWorldBorder();
         
         // CraftBukkit start
-        getWorldBorder().world = (WorldServer) servant;
+        getWorldBorder().world = servant;
         // From PlayerList.setPlayerFileData
         getWorldBorder().a(new IWorldBorderListener() {
             @Override
@@ -281,6 +348,80 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             public void c(WorldBorder worldborder, double d0) {}
         });
         // CraftBukkit end
+        
+        /**
+         * WorldServer 
+         */
+        server = TorchServer.getServer();
+        pvpMode = server.isPvpMode();
+        
+        siegeManager = new VillageSiege(servant);
+        
+        dimension = worldId;
+        worldData.world = servant;
+        
+        tracker = new EntityTracker(servant);
+        playerChunkMap = new PlayerChunkMap(servant, spigotConfig.viewDistance);
+        
+        getServant().worldProvider.a(servant);
+        chunkProvider = servant.n();
+        
+        portalTravelAgent = new CraftTravelAgent(servant); // CraftBukkit
+        
+        this.initSkylight();
+        this.initWeather();
+        
+        this.getWorldBorder().a(server.getMaxWorldSize()); // PAIL: setSize
+    }
+    
+    public TorchWorld init() {
+        servant.worldMaps = new PersistentCollection(this.dataManager);
+        
+        String fileNameForProvider = PersistentVillage.a(servant.worldProvider);
+        PersistentVillage villages = (PersistentVillage) servant.worldMaps.get(PersistentVillage.class, fileNameForProvider);
+        
+        if (villages == null) {
+            servant.villages = new PersistentVillage(servant);
+            servant.worldMaps.a(fileNameForProvider, servant.villages);
+        } else {
+            servant.villages = villages;
+            servant.villages.a(servant);
+        }
+
+        if (getCraftServer().getScoreboardManager() == null) {
+            servant.scoreboard = new ScoreboardServer(this.server.getServant());
+            PersistentScoreboard scoreboard = (PersistentScoreboard) servant.worldMaps.get(PersistentScoreboard.class, "scoreboard");
+
+            if (scoreboard == null) {
+                scoreboard = new PersistentScoreboard();
+                servant.worldMaps.a("scoreboard", scoreboard);
+            }
+
+            scoreboard.a(servant.scoreboard);
+            ((ScoreboardServer) servant.scoreboard).a((new RunnableSaveScoreboard(scoreboard)));
+        } else {
+            servant.scoreboard = getCraftServer().getScoreboardManager().getMainScoreboard().getHandle();
+        }
+        
+        servant.setLootTable(new LootTableRegistry(new File(new File(this.dataManager.getDirectory(), "data"), "loot_tables")));
+        
+        this.getWorldBorder().setCenter(this.worldData.B(), this.worldData.C());
+        this.getWorldBorder().setDamageAmount(this.worldData.H());
+        this.getWorldBorder().setDamageBuffer(this.worldData.G());
+        this.getWorldBorder().setWarningDistance(this.worldData.I());
+        this.getWorldBorder().setWarningTime(this.worldData.J());
+        
+        if (this.worldData.E() > 0L) {
+            this.getWorldBorder().transitionSizeBetween(this.worldData.D(), this.worldData.F(), this.worldData.E());
+        } else {
+            this.getWorldBorder().setSize(this.worldData.D());
+        }
+
+        if (generator != null) {
+            getCraftWorld().getPopulators().addAll(generator.getDefaultPopulators(getCraftWorld()));
+        }
+
+        return this;
     }
 
     public CraftServer getCraftServer() {
@@ -322,16 +463,134 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         this.worldData.d(true); // PAIL: setServerInitialized
     }
     
+    public boolean canSpawnAt(int x, int z) {
+        if (generator != null) {
+            return generator.canSpawn(this.getCraftWorld(), x, z);
+        } else {
+            return servant.worldProvider.canSpawn(x, z);
+        }
+    }
+    
     public void setSpawnFlags(boolean monsters, boolean animals) {
         servant.allowMonsters = monsters;
         servant.allowAnimals = animals;
     }
     
+    /**
+     * Check whether all players are deeply sleeping, ignoring spectators
+     */
+    public boolean everyoneDeeplySleeping() {
+        if (!allPlayersSleeping) return false;
+        
+        for (EntityHuman player : players) {
+            if (player.isSpectator()) continue; // ignore spectators
+            
+            if (!player.isDeeplySleeping() && !player.fauxSleeping) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Check whether all players are sleeping, ignoring spectators
+     * <p>The result update to {@link #allPlayersSleeping}
+     */
+    public void checkEveryoneSleeping() {
+        allPlayersSleeping = false;
+        
+        for (EntityHuman player : players) {
+            if (player.isSpectator()) continue; // ignore spectators
+            
+            if (!player.isSleeping() && !player.fauxSleeping) {
+                return;
+            }
+        }
+        
+        allPlayersSleeping = true;
+    }
+    
+    public void doTick() {
+        // TODO: super.doTick();
+        
+        if (this.getWorldData().isHardcore() && this.getDifficulty() != EnumDifficulty.HARD) {
+            this.getWorldData().setDifficulty(EnumDifficulty.HARD);
+        }
+
+        servant.worldProvider.k().b();
+        if (this.everyoneDeeplySleeping()) {
+            if (this.getGameRules().getBoolean("doDaylightCycle")) {
+                long i = this.worldData.getDayTime() + 24000L;
+
+                this.worldData.setDayTime(i - i % 24000L);
+            }
+
+            this.f();
+        }
+
+        // CraftBukkit start - Only call spawner if we have players online and the world allows for mobs or animals
+        long time = this.worldData.getTime();
+        if (this.getGameRules().getBoolean("doMobSpawning") && this.worldData.getType() != WorldType.DEBUG_ALL_BLOCK_STATES && (servant.allowMonsters || servant.allowAnimals) && players.size() > 0) {
+            timings.mobSpawn.startTiming();
+            this.spawnerCreature.findChunksForSpawning(this, servant.allowMonsters && (ticksPerMonsterSpawns != 0 && time % ticksPerMonsterSpawns == 0L), servant.allowAnimals && (ticksPerAnimalSpawns != 0 && time % ticksPerAnimalSpawns == 0L), this.worldData.getTime() % 400L == 0L);
+            timings.mobSpawn.stopTiming();
+            // CraftBukkit end
+        }
+
+        timings.doChunkUnload.startTiming();
+        this.chunkProvider.unloadChunks();
+        int j = this.a(1.0F);
+
+        if (j != this.af()) {
+            this.c(j);
+        }
+
+        this.worldData.setTime(this.worldData.getTime() + 1L);
+        if (this.getGameRules().getBoolean("doDaylightCycle")) {
+            this.worldData.setDayTime(this.worldData.getDayTime() + 1L);
+        }
+        timings.doChunkUnload.stopTiming();
+        
+        timings.scheduledBlocks.startTiming();
+        this.a(false);
+        timings.scheduledBlocks.stopTiming();
+        
+        timings.chunkTicks.startTiming();
+        this.j();
+        timings.chunkTicks.stopTiming();
+        
+        timings.doChunkMap.startTiming();
+        this.playerChunkMap.flush();
+        timings.doChunkMap.stopTiming();
+        
+        timings.doVillages.startTiming();
+        servant.villages.tick();
+        this.siegeManager.a();
+        timings.doVillages.stopTiming();
+        
+        timings.doPortalForcer.startTiming();
+        this.portalTravelAgent.a(this.getTime());
+        timings.doPortalForcer.stopTiming();
+
+        timings.doSounds.startTiming();
+        this.ao();
+        timings.doSounds.stopTiming();
+
+        timings.doChunkGC.startTiming();// Spigot
+        this.getCraftWorld().processChunkGC();
+        timings.doChunkGC.stopTiming();
+    }
+    
+    public void saveLevel() {
+        this.dataManager.a();
+    }
+    
     public void tickWeather() {
-        if (!servant.worldProvider.m()) return;
+        boolean isRaining = this.isRaining();
         
         boolean doWeather = this.getGameRules().getBoolean("doWeatherCycle");
-        if (doWeather) {
+        if (doWeather && servant.worldProvider.m()) {
             int durationThunder = this.worldData.z();
             if (durationThunder > 0) {
                 durationThunder--;
@@ -388,15 +647,32 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         }
         this.rainingStrength = MathHelper.a(this.rainingStrength, 0.0F, 1.0F);
 
-        // Moved to WorldServer
-        /* for (EntityHuman player : this.players) {
-            if (player.world == servant) {
-                ((EntityPlayer) player).tickWeather();
+        if (isRaining != this.isRaining()) {
+            // Only send weather packets to those affected
+            
+            for (EntityHuman player : players) {
+                if (((EntityPlayer) player).world == servant) {
+                    ((EntityPlayer) player).tickWeather();
+                    ((EntityPlayer) player).setPlayerWeather((!isRaining ? WeatherType.DOWNFALL : WeatherType.CLEAR), false);
+                    
+                    ((EntityPlayer) player).updateWeather(prevRainingStrength, rainingStrength, prevThunderingStrength, thunderingStrength);
+                }
             }
-        } */
+        } else {
+            for (EntityHuman player : players) {
+                if (((EntityPlayer) player).world == servant) {
+                    ((EntityPlayer) player).tickWeather();
+                    
+                    ((EntityPlayer) player).updateWeather(prevRainingStrength, rainingStrength, prevThunderingStrength, thunderingStrength);
+                }
+            }
+            
+        }
     }
     
     public void tickEntities() {
+        servant.worldProvider.s();
+        
         Iterator<Entity> it = lightingEntities.iterator();
         while (it.hasNext()) {
             Entity entity = it.next();
@@ -566,11 +842,23 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         timings.tileEntityPending.stopTiming();
         
         TimingHistory.tileEntityTicks += this.tickableTileEntities.size(); // Paper
+        spigotConfig.currentPrimedTnt = 0;
+    }
+    
+    public void updateRandomLight() {
+        if (spigotConfig.randomLightUpdates && !players.isEmpty()) {
+            int index = this.random.nextInt(players.size());
+            EntityHuman randomPlayer = players.get(index);
+            int x = MathHelper.floor(randomPlayer.locX) + this.random.nextInt(11) - 5;
+            int y = MathHelper.floor(randomPlayer.locY) + this.random.nextInt(11) - 5;
+            int z = MathHelper.floor(randomPlayer.locZ) + this.random.nextInt(11) - 5;
+            
+            this.checkLightAt(new BlockPosition(x, y, z));
+        }
     }
     
     public void tickPlayers() {
-        // Done in WorldServer
-        /* for (Entity entity : this.players) {
+        for (Entity entity : this.players) {
             Entity entity1 = entity.bB();
 
             if (entity1 != null) {
@@ -604,7 +892,7 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
                 this.entityList.remove(entity);
                 this.onEntityRemove(entity);
             }
-        } */
+        }
     }
     
     /**
@@ -881,8 +1169,8 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         IBlockData iblockdata = this.getType(blockposition);
 
         try {
-            CraftWorld world = ((WorldServer) servant).getWorld();
-            if (world != null && !((WorldServer) servant).stopPhysicsEvent) { // Paper
+            CraftWorld world = servant.getWorld();
+            if (world != null && !servant.stopPhysicsEvent) { // Paper
                 BlockPhysicsEvent event = BlockPhysicsEvent.of(world.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), CraftMagicNumbers.getId(block));
                 this.getCraftServer().getPluginManager().callEvent(event);
 
@@ -1295,6 +1583,20 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
 
         explosion.a();
         explosion.a(true);
+        
+        if (explosion.wasCanceled) {
+            return explosion;
+        }
+        
+        if (!smoking) {
+            explosion.clearBlocks();
+        }
+        
+        for (EntityHuman player : players) {
+            if (player.getOffsetSq(x, y, z) < 4096.0D) {
+                ((EntityPlayer) player).playerConnection.sendPacket(new PacketPlayOutExplosion(x, y, z, strength, explosion.getBlocks(), explosion.b().get(player)));
+            }
+        }
         
         return explosion;
     }
@@ -1788,6 +2090,14 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         entity.valid = true;
         EntityAddToWorldEvent.of(entity.getBukkitEntity()).callEvent(); // Paper
+        ///
+        this.entitiesById.put(entity.getId(), entity);
+        this.entitiesByUUID.put(entity.getUniqueID(), entity);
+        
+        Entity[] aentity = entity.aT();
+        if (aentity != null) {
+            for (Entity entity1 : aentity) this.entitiesById.put(entity1.getId(), entity);
+        }
     }
 
     public void onEntityRemove(Entity entity) {
@@ -1797,6 +2107,14 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         
         EntityRemoveFromWorldEvent.of(entity.getBukkitEntity()).callEvent(); // Paper
         entity.valid = false;
+        ///
+        this.entitiesById.remove(entity.getId());
+        this.entitiesByUUID.remove(entity.getUniqueID());
+        
+        Entity[] aentity = entity.aT();
+        if (aentity != null) {
+            for (Entity entity1 : aentity) this.entitiesById.remove(entity1.getId());
+        }
     }
     
     /**
@@ -1816,14 +2134,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         for (IWorldAccess access : worldListeners) {
             access.a(expect, effect, category, x, y, z, volume, pitch); // playSoundNearbyExpect
         }
-    }
-    
-    /**
-     * Get an entity by its entity id
-     */
-    @Nullable
-    public Entity getEntity(int entityId) {
-        return this.entitiesById.get(entityId);
     }
     
     /**
@@ -1965,10 +2275,6 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
         return this.worldData.w(); // PAIL: getGameRules
     }
     
-    public void everyoneSleeping() {
-        servant.everyoneSleeping();
-    }
-    
     public DifficultyDamageScaler createDamageScaler(BlockPosition position) {
         long i = 0L;
         float f = 0.0F;
@@ -2033,12 +2339,12 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
     public TileEntity getTileEntity(BlockPosition pos) {
         if (pos.isInvalidYLocation()) return null;
         
+        TileEntity result = null;
         if (capturedTileEntities.containsKey(pos)) {
-            return capturedTileEntities.get(pos);
+            result = capturedTileEntities.get(pos);
         }
         
-        TileEntity result = null;
-        if (this.processingLoadedTiles) {
+        if (result == null && this.processingLoadedTiles) {
             result = this.getAddedTileEntity(pos);
         }
         
@@ -2050,7 +2356,74 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             result = this.getAddedTileEntity(pos);
         }
         
+        Block type = getType(pos).getBlock();
+
+        if (type == Blocks.CHEST || type == Blocks.TRAPPED_CHEST) { // Spigot
+            if (!(result instanceof TileEntityChest)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.FURNACE) {
+            if (!(result instanceof TileEntityFurnace)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.DROPPER) {
+            if (!(result instanceof TileEntityDropper)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.DISPENSER) {
+            if (!(result instanceof TileEntityDispenser)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.JUKEBOX) {
+            if (!(result instanceof BlockJukeBox.TileEntityRecordPlayer)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.NOTEBLOCK) {
+            if (!(result instanceof TileEntityNote)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.MOB_SPAWNER) {
+            if (!(result instanceof TileEntityMobSpawner)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if ((type == Blocks.STANDING_SIGN) || (type == Blocks.WALL_SIGN)) {
+            if (!(result instanceof TileEntitySign)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.ENDER_CHEST) {
+            if (!(result instanceof TileEntityEnderChest)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.BREWING_STAND) {
+            if (!(result instanceof TileEntityBrewingStand)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.BEACON) {
+            if (!(result instanceof TileEntityBeacon)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        } else if (type == Blocks.HOPPER) {
+            if (!(result instanceof TileEntityHopper)) {
+                result = fixTileEntity(pos, type, result);
+            }
+        }
+
         return result;
+    }
+    
+    public TileEntity fixTileEntity(BlockPosition pos, Block type, TileEntity found) {
+        this.getCraftServer().getLogger().log(Level.SEVERE, "Block at {0},{1},{2} is {3} but has {4}" + ". "
+                + "Bukkit will attempt to fix this, but there may be additional damage that we cannot recover.", new Object[]{pos.getX(), pos.getY(), pos.getZ(), org.bukkit.Material.getMaterial(Block.getId(type)).toString(), found});
+
+        if (type instanceof ITileEntity) {
+            TileEntity replacement = ((ITileEntity) type).a(servant, type.toLegacyData(this.getType(pos)));
+            replacement.world = servant;
+            this.setTileEntity(pos, replacement);
+            return replacement;
+        } else {
+            this.getCraftServer().getLogger().severe("Don't know how to fix for this type... Can't do anything! :(");
+            return found;
+        }
     }
     
     public void setTileEntity(BlockPosition position, @Nullable TileEntity tileentity) {
@@ -2234,7 +2607,46 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
      * Adds the specified Entity to the pending strike list
      */
     public boolean strikeLightning(Entity entity) {
-        return this.lightingEntities.add(entity);
+        LightningStrikeEvent lightning = new LightningStrikeEvent(this.getCraftWorld(), (org.bukkit.entity.LightningStrike) entity.getBukkitEntity());
+        this.getCraftServer().getPluginManager().callEvent(lightning);
+
+        if (lightning.isCancelled()) {
+            return false;
+        }
+        
+        if (this.lightingEntities.add(entity)) {
+            this.server.getPlayerList().sendPacketNearby((EntityHuman) null, entity.locX, entity.locY, entity.locZ, 512.0D, dimension, new PacketPlayOutSpawnEntityWeather(entity)); // CraftBukkit - Use dimension
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    public IChunkProvider createChunkProvider() {
+        IChunkLoader ichunkloader = this.dataManager.createChunkLoader(servant.worldProvider);
+
+        org.bukkit.craftbukkit.generator.InternalChunkGenerator gen;
+
+        if (generator != null) {
+            gen = new CustomChunkGenerator(servant, this.getSeed(), generator);
+        } else if (servant.worldProvider instanceof WorldProviderHell) {
+            gen = new NetherChunkGenerator(servant, this.getSeed());
+        } else if (servant.worldProvider instanceof WorldProviderTheEnd) {
+            gen = new SkyLandsChunkGenerator(servant, this.getSeed());
+        } else {
+            gen = new NormalChunkGenerator(servant, this.getSeed());
+        }
+
+        return new ChunkProviderServer(servant, ichunkloader, new TimedChunkGenerator(servant, gen));
+    }
+    
+    @Nullable
+    public BlockPosition getDimensionSpawn() {
+        return servant.worldProvider.h();
+    }
+    
+    public void broadcastEntityEffect(Entity entity, byte data) {
+        tracker.sendPacketToEntity(entity, new PacketPlayOutEntityStatus(entity, data));
     }
     
     public boolean addEntity(Entity entity) {
@@ -3125,5 +3537,31 @@ public final class TorchWorld implements TorchReactor, net.minecraft.server.IBlo
             }
         }
 
+    }
+    
+    /**
+     * Get an entity by its entity id
+     */
+    @Nullable
+    public Entity getEntity(int entityId) {
+        return this.entitiesById.get(entityId);
+    }
+    
+    /**
+     * Get an entity by its entity uuid
+     */
+    @Nullable
+    public Entity getEntity(UUID uuid) {
+        return this.entitiesByUUID.get(uuid);
+    }
+    
+    @Override
+    public ListenableFuture<Object> postToMainThread(Runnable runnable) {
+        return this.server.postToMainThread(runnable);
+    }
+
+    @Override
+    public boolean isMainThread() {
+        return this.server.isMainThread();
     }
 }

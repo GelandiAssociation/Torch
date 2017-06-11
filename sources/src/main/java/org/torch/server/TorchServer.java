@@ -752,7 +752,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                 worldData.checkName(worldName);
                 
                 if (this.isDemoMode()) {
-                    world = (WorldServer) (new DemoWorldServer(getMinecraftServer(), dataManager, worldData, dimension, this.methodProfiler)).b();
+                    world = (WorldServer) (new DemoWorldServer(getMinecraftServer(), dataManager, worldData, dimension, this.methodProfiler, Environment.getEnvironment(dimension), gen)).b();
                 } else {
                     world = (WorldServer) (new WorldServer(getMinecraftServer(), dataManager, worldData, dimension, this.methodProfiler, Environment.getEnvironment(dimension), gen)).b();
                 }
