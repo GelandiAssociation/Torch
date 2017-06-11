@@ -3,6 +3,7 @@ package org.torch.server;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.server.*;
+import net.minecraft.server.BiomeBase.BiomeMeta;
 import net.minecraft.server.BlockPosition.PooledBlockPosition;
 import net.minecraft.server.EnumDirection.EnumDirectionLimit;
 import net.minecraft.server.PacketPlayOutWorldBorder.EnumWorldBorderAction;
@@ -136,7 +137,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     /**
      * A list of all the lightning entities
      */
-    public final List<Entity> lightingEntities = Lists.newArrayList();
+    public final Set<Entity> lightingEntities = HashObjSets.newMutableSet();
     /**
      * Entities in the world, by entity id
      */
@@ -234,10 +235,6 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     
     public static boolean haveWeSilencedAPhysicsCrash;
     public static String blockLocation;
-    
-    // Used during remove entity, designed for performance, or we should copy the list
-    private int tickPosition;
-    private int tileTickPosition;
     
     public final Map<Explosion.CacheKey, Float> explosionDensityCache = HashObjFloatMaps.newMutableMap();
     
@@ -476,6 +473,19 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         servant.allowAnimals = animals;
     }
     
+    @Nullable
+    public BiomeMeta createRandomSpawnEntry(EnumCreatureType creatureType, BlockPosition position) {
+        List<BiomeMeta> creatures = getChunkProviderServer().getPossibleCreatures(creatureType, position);
+
+        return creatures != null && !creatures.isEmpty() ? (BiomeMeta) WeightedRandom.a(random, creatures) : null;
+    }
+
+    public boolean possibleToSpawn(EnumCreatureType creatureType, BiomeMeta spawnEntry, BlockPosition position) {
+        List<BiomeMeta> creatures = getChunkProviderServer().getPossibleCreatures(creatureType, position);
+
+        return creatures != null && !creatures.isEmpty() ? creatures.contains(spawnEntry) : false;
+    }
+    
     /**
      * Check whether all players are deeply sleeping, ignoring spectators
      */
@@ -690,9 +700,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
                 throw new ReportedException(report);
             }
             
-            if (entity.dead) {
-                it.remove();
-            }
+            if (entity.dead) it.remove();
         }
         
         timings.entityRemoval.startTiming();
@@ -719,9 +727,8 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         guardEntityList = true;
         TimingHistory.entityTicks += this.entityList.size(); // Paper
         
-        for (tickPosition = 0; tickPosition < entityList.size(); tickPosition++) {
-            tickPosition = (tickPosition < entityList.size()) ? tickPosition : 0;
-            Entity entity = this.entityList.get(this.tickPosition);
+        for (int order = 0; order < entityList.size(); order++) {
+            Entity entity = this.entityList.get(order);
             Entity entity1 = entity.bB();
             
             if (entity1 != null) {
@@ -758,7 +765,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
                 }
                 
                 guardEntityList = false;
-                entityList.remove(tickPosition--);
+                entityList.remove(order--);
                 guardEntityList = true;
                 
                 this.onEntityRemove(entity);
@@ -777,13 +784,12 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         }
         // CraftBukkit end
         
-        for (tileTickPosition = 0; tileTickPosition < tickableTileEntities.size(); tileTickPosition++) { // Paper - Disable tick limiters
-            tileTickPosition = (tileTickPosition < tickableTileEntities.size()) ? tileTickPosition : 0;
-            TileEntity tickable = this.tickableTileEntities.get(tileTickPosition);
+        for (int order = 0; order < tickableTileEntities.size(); order++) { // Paper - Disable tick limiters
+            TileEntity tickable = this.tickableTileEntities.get(order);
             
             if (tickable == null) {
                 logger.warn("Spigot has detected a null entity and has removed it, preventing a crash");
-                this.tickableTileEntities.remove(tileTickPosition--);
+                this.tickableTileEntities.remove(order--);
                 continue;
             }
             
@@ -800,7 +806,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
                         System.err.println(msg);
                         t.printStackTrace();
                         getCraftServer().getPluginManager().callEvent(new ServerExceptionEvent(new ServerInternalException(msg, t)));
-                        this.tickableTileEntities.remove(tileTickPosition--);
+                        this.tickableTileEntities.remove(order--);
                         continue;
                     } finally {
                         tickable.tickTimer.stopTiming();
@@ -809,7 +815,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
             }
             
             if (tickable.y()) {
-                this.tickableTileEntities.remove(tileTickPosition--);
+                this.tickableTileEntities.remove(order--);
                 
                 BlockPosition pos = tickable.getPosition();
                 this.applyIfChunkLoaded(pos, chunk -> chunk.d(pos));
@@ -1659,8 +1665,8 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         return ((ChunkProviderServer) this.chunkProvider).isLoaded(chunkX, chunkZ);
     }
     
-    public ChunkProviderServer getChunkProviderServer() {
-        return (ChunkProviderServer) this.chunkProvider;
+    public TorchChunkProvider getChunkProviderServer() {
+        return ((ChunkProviderServer) this.chunkProvider).getReactor();
     }
     
     /** The range is in square */
@@ -2721,7 +2727,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         
         if (spawnAsPlayer) {
             this.players.add((EntityHuman) entity);
-            this.everyoneSleeping();
+            this.checkEveryoneSleeping();
         }
         
         Chunk chunk;
@@ -2761,7 +2767,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
                 }
             }
             
-            this.everyoneSleeping();
+            this.checkEveryoneSleeping();
             this.onEntityRemove(entity);
         }
     }
@@ -2770,23 +2776,16 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         AsyncCatcher.catchOp("entity remove");
         
         entity.b(false);
-        
-        // It will get removed from the entity list after the tick if we are ticking
         entity.die();
         
         if (entity instanceof EntityHuman) {
             this.players.remove(entity);
-            this.everyoneSleeping();
+            this.checkEveryoneSleeping();
         }
         
-        // It will get removed from the entity list after the tick if we are ticking
-        int index = this.entityList.indexOf(entity);
-        if (index != -1) {
-            if (index <= this.tickPosition) {
-                this.tickPosition--;
-            }
-            
-            this.entityList.remove(index);
+        // It will get removed from the entity list after the tick if we are ticking, because marked as dead
+        if (!guardEntityList) {
+            this.entityList.remove(entity);
             this.onEntityRemove(entity);
         }
     }
@@ -3376,7 +3375,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     public boolean checkNoEntityCollision(AxisAlignedBB aabb, @Nullable Entity entity) {
         Predicate<Entity> anyCollision = (each) -> {
             if (!each.dead && each.i && each != entity && (entity == null || each.x(entity))) {
-                // return if there is any entity collide with the aabb
+                // returns if there is any entity collide with the aabb
                 return true;
             }
             return false; // continue
@@ -3400,7 +3399,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
             }
             
             if (!each.dead && each.blocksEntitySpawning()) {
-                // return if there is any visible player collide with the aabb
+                // returns if there is any visible player collide with the aabb
                 return true;
             }
 
@@ -3548,7 +3547,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     }
     
     /**
-     * Get an entity by its entity uuid
+     * Get an entity by its uuid
      */
     @Nullable
     public Entity getEntity(UUID uuid) {

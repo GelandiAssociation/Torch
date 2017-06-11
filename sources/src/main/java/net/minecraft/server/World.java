@@ -83,7 +83,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     /** addedTileEntities */
     private final Set<TileEntity> b; // Torch - List -> Set
     /** lightingEntities */
-    public final List<Entity> j;
+    // public final List<Entity> j; // Torch - List -> Set
     /** cloudColour */
     private final long I;
     /** skylightSubtracted */
@@ -177,7 +177,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         entityList = reactor.getEntityList();
         tileEntityListTick = reactor.getTickableTileEntities();
         tileEntityListUnload = reactor.getTileEntityToUnload();
-        // players = reactor.getPlayers(); // Torch - List -> Set
         chunkProvider = reactor.getChunkProvider();
         dataManager = reactor.getDataManager();
         worldData = reactor.getWorldData();
@@ -197,7 +196,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         N = reactor.getWorldBorder();
         H = reactor.getLightUpdateBlocks();
         
-        j = reactor.getLightingEntities();
+        //j = reactor.getLightingEntities(); // Torch - List -> Set
         I = reactor.getCloudColour();
         J = reactor.getSkylightSubtracted();
         l = reactor.getUpdateLCG();

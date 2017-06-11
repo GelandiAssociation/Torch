@@ -3,11 +3,8 @@ package net.minecraft.server;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.koloboke.collect.map.hash.HashObjObjMaps;
-
 import net.minecraft.server.BiomeBase.BiomeMeta;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -19,18 +16,13 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-// CraftBukkit start
-import java.util.logging.Level;
-
-import org.bukkit.WeatherType;
 import org.bukkit.craftbukkit.util.HashTreeSet;
 
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
-import org.bukkit.event.weather.LightningStrikeEvent;
 // CraftBukkit end
 import org.torch.server.TorchServer;
 
-import static org.torch.server.TorchServer.logger;;
+import static org.torch.server.TorchServer.logger;
 
 public class WorldServer extends World implements IAsyncTaskHandler {
 
@@ -176,18 +168,12 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         timings.doChunkGC.stopTiming(); // Spigot
     }
 
-    @Nullable public BiomeMeta createRandomSpawnEntry(EnumCreatureType creatureType, BlockPosition position) { return this.a(creatureType, position); } // OBFHELPER
     @Nullable public BiomeBase.BiomeMeta a(EnumCreatureType enumcreaturetype, BlockPosition blockposition) {
-        List list = this.getChunkProviderServer().a(enumcreaturetype, blockposition);
-
-        return list != null && !list.isEmpty() ? (BiomeBase.BiomeMeta) WeightedRandom.a(this.random, list) : null;
+        return reactor.createRandomSpawnEntry(enumcreaturetype, blockposition);
     }
 
-    public boolean possibleToSpawn(EnumCreatureType creatureType, BiomeMeta spawnEntry, BlockPosition position) { return this.a(creatureType, spawnEntry, position); } // OBFHELPER
     public boolean a(EnumCreatureType enumcreaturetype, BiomeBase.BiomeMeta biomebase_biomemeta, BlockPosition blockposition) {
-        List list = this.getChunkProviderServer().a(enumcreaturetype, blockposition);
-
-        return list != null && !list.isEmpty() ? list.contains(biomebase_biomemeta) : false;
+        return reactor.possibleToSpawn(enumcreaturetype, biomebase_biomemeta, blockposition);
     }
 
     @Override
@@ -951,7 +937,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
     }
 
     public ChunkProviderServer getChunkProviderServer() {
-        return reactor.getChunkProviderServer();
+        return (ChunkProviderServer) reactor.getChunkProvider();
     }
 
     @Override

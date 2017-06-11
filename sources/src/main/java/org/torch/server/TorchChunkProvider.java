@@ -2,6 +2,7 @@ package org.torch.server;
 
 import lombok.Getter;
 import net.minecraft.server.*;
+import net.minecraft.server.BiomeBase.BiomeMeta;
 
 import org.bukkit.craftbukkit.chunkio.ChunkIOExecutor;
 import org.bukkit.event.world.ChunkUnloadEvent;
@@ -390,7 +391,7 @@ public final class TorchChunkProvider implements net.minecraft.server.IChunkProv
         return "ServerChunkCache: " + this.chunks.size() + " Drop: " + this.unloadQueue.size();
     }
 
-    public List<BiomeBase.BiomeMeta> getPossibleCreatures(EnumCreatureType creatureType, BlockPosition position) {
+    public List<BiomeMeta> getPossibleCreatures(EnumCreatureType creatureType, BlockPosition position) {
         return servant.chunkGenerator.getMobsFor(creatureType, position);
     }
 
