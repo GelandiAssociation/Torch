@@ -135,7 +135,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
      */
     public final List<EntityHuman> players = WrappedCollections.createHashSetBackedArrayList();
     /**
-     * A list of all the lightning entities
+     * A set of all the lightning entities
      */
     public final Set<Entity> lightingEntities = HashObjSets.newMutableSet();
     /**
