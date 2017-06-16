@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.server.*;
 import net.minecraft.server.BiomeBase.BiomeMeta;
+import net.minecraft.server.BlockPosition.MutableBlockPosition;
 import net.minecraft.server.BlockPosition.PooledBlockPosition;
 import net.minecraft.server.EnumDirection.EnumDirectionLimit;
 import net.minecraft.server.PacketPlayOutWorldBorder.EnumWorldBorderAction;
@@ -13,25 +14,20 @@ import org.bukkit.Bukkit;
 import org.bukkit.WeatherType;
 import org.bukkit.block.BlockState;
 import org.bukkit.craftbukkit.CraftServer;
-import org.bukkit.craftbukkit.CraftTravelAgent;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
-import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
-import org.bukkit.craftbukkit.generator.NetherChunkGenerator;
-import org.bukkit.craftbukkit.generator.NormalChunkGenerator;
-import org.bukkit.craftbukkit.generator.SkyLandsChunkGenerator;
 import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.craftbukkit.util.HashTreeSet;
 import org.bukkit.event.block.BlockCanBuildEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.weather.LightningStrikeEvent;
+import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.generator.ChunkGenerator;
 import org.spigotmc.ActivationRange;
 import org.spigotmc.AsyncCatcher;
 import org.spigotmc.SpigotWorldConfig;
 import org.torch.api.Async;
-import org.torch.api.MagicNumbers;
 import org.torch.api.MagicNumbers.BlockUpdater;
 import org.torch.api.TorchReactor;
 import org.torch.utils.collection.WrappedCollections;
@@ -44,18 +40,17 @@ import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.koloboke.collect.map.hash.HashObjFloatMaps;
 import com.koloboke.collect.map.hash.HashObjObjMaps;
 import com.koloboke.collect.set.hash.HashObjSets;
 
-import co.aikar.timings.TimedChunkGenerator;
+import co.aikar.timings.Timing;
 import co.aikar.timings.TimingHistory;
 import co.aikar.timings.WorldTimingsHandler;
 
 import static org.torch.server.TorchServer.logger;
-import static org.torch.server.TorchServer.getServer;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -77,7 +72,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     /**
      * The legacy world instance
      */
-    private final WorldServer servant;
+    public WorldServer servant;
     
     private static final EnumDirection[] BLOCK_FACES = {EnumDirection.DOWN, EnumDirection.UP, EnumDirection.EAST, EnumDirection.NORTH, EnumDirection.SOUTH, EnumDirection.WEST};
     
@@ -258,11 +253,13 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     /** 
      * The player chunk map for this server world
      */
-    private final PlayerChunkMap playerChunkMap;
+    public PlayerChunkMap playerChunkMap;
     /**
      * All work to do in future ticks
      */
-    private final HashTreeSet<NextTickListEntry> nextTickList = new HashTreeSet<NextTickListEntry>();
+    private final HashTreeSet<NextTickListEntry> scheduledBlocks = new HashTreeSet<NextTickListEntry>();
+    
+    private final Set<NextTickListEntry> pendingBlocks = Sets.newHashSet();
     
     private final Map<UUID, Entity> entitiesByUUID = HashObjObjMaps.newMutableMap();
     /**
@@ -277,16 +274,14 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     /**
      * The teleporter to use when the entity is being transferred into the dimension
      */
-    private final PortalTravelAgent portalTravelAgent;
+    public PortalTravelAgent portalTravelAgent;
     
     private final TorchCreatureSpawner spawnerCreature = new SpawnerCreature().getReactor();
     
-    protected final VillageSiege siegeManager;
+    public VillageSiege siegeManager;
     
     private final BlockActionDataList<BlockActionData>[] blockEventQueue = new BlockActionDataList[] { new BlockActionDataList<BlockActionData>(), new BlockActionDataList<BlockActionData>() };
     private int blockEventCacheIndex;
-    
-    private final List<NextTickListEntry> pendingTickListEntriesThisTick = Lists.newArrayList();
     
     public TorchWorld(IDataManager dataHandler, WorldData data, WorldProvider worldprovider, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
         this(-1, dataHandler, data, worldprovider, flag, gen, env, null);
@@ -301,8 +296,6 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         
         worldListeners = Lists.newArrayList(new IWorldAccess[] { this.navigator });
         calendar = Calendar.getInstance();
-        servant.allowMonsters = true;
-        servant.allowAnimals = true;
         lightUpdateBlocks = new int['\u8000'];
         
         dataManager = dataHandler;
@@ -352,21 +345,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         server = TorchServer.getServer();
         pvpMode = server.isPvpMode();
         
-        siegeManager = new VillageSiege(servant);
-        
         dimension = worldId;
-        worldData.world = servant;
-        
-        tracker = new EntityTracker(servant);
-        playerChunkMap = new PlayerChunkMap(servant, spigotConfig.viewDistance);
-        
-        getServant().worldProvider.a(servant);
-        chunkProvider = servant.n();
-        
-        portalTravelAgent = new CraftTravelAgent(servant); // CraftBukkit
-        
-        this.initSkylight();
-        this.initWeather();
         
         this.getWorldBorder().a(server.getMaxWorldSize()); // PAIL: setSize
     }
@@ -457,7 +436,97 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     }
     
     public void initialize(WorldSettings settings) {
-        this.worldData.d(true); // PAIL: setServerInitialized
+        if (!this.worldData.v()) {
+            try {
+                this.createSpawnPoint(settings);
+                
+                this.worldData.d(true); // PAIL: setServerInitialized
+            } catch (Throwable t) {
+                CrashReport report = CrashReport.a(t, "Exception initializing level");
+
+                try {
+                    this.addInfoToCrashReport(report);
+                } catch (Throwable throwable) {
+                    ;
+                }
+                
+                throw new ReportedException(report);
+            }
+        }
+    }
+    
+    /**
+     * Creates a spawn position at random within 256 blocks of 0,0
+     */
+    public void createSpawnPoint(WorldSettings settings) {
+        if (!servant.worldProvider.e()) { // PAIL: canRespawnHere
+            this.worldData.setSpawn(BlockPosition.ZERO.up(servant.worldProvider.getSeaLevel()));
+        } else {
+            this.isLoading = true;
+            WorldChunkManager chunkManager = servant.worldProvider.k();
+            List<BiomeBase> list = chunkManager.a(); // PAIL: getBiomesToSpawn
+            
+            Random random = new Random(this.getSeed());
+            BlockPosition position = chunkManager.a(0, 0, 256, list, random);
+            
+            int x = 8;
+            int y = servant.worldProvider.getSeaLevel();
+            int z = 8;
+            
+            if (generator != null) {
+                Random rand = new Random(this.getSeed());
+                org.bukkit.Location spawn = generator.getFixedSpawnLocation(getCraftWorld(), rand);
+
+                if (spawn != null) {
+                    if (spawn.getWorld() != getCraftWorld()) {
+                        throw new IllegalStateException("Cannot set spawn point for " + this.worldData.getName() + " to be in another world (" + spawn.getWorld().getName() + ")");
+                    } else {
+                        this.worldData.setSpawn(new BlockPosition(spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ()));
+                        this.isLoading = false;
+                        return;
+                    }
+                }
+            }
+            
+            if (position != null) {
+                x = position.getX();
+                z = position.getZ();
+            } else {
+                logger.warn("Unable to find spawn biome");
+            }
+
+            int retry = 0;
+            while (!this.canSpawnAt(x, z)) {
+                x += random.nextInt(64) - random.nextInt(64);
+                z += random.nextInt(64) - random.nextInt(64);
+                retry++;
+                if (retry == 900) break;
+            }
+            
+            this.worldData.setSpawn(new BlockPosition(x, y, z));
+            this.isLoading = false;
+            
+            if (settings.c()) { // PAIL: isBonusChestEnabled
+                this.createBonusChest();
+            }
+        }
+    }
+    
+    /**
+     * Creates the bonus chest in the world
+     */
+    public void createBonusChest() {
+        WorldGenBonusChest bonusChest = new WorldGenBonusChest();
+        
+        for (int i = 0; i < 10; ++i) {
+            int x = this.worldData.b() + this.random.nextInt(6) - this.random.nextInt(6);
+            int z = this.worldData.d() + this.random.nextInt(6) - this.random.nextInt(6);
+            BlockPosition blockposition = this.getTopSolidOrLiquidBlock(new BlockPosition(x, 0, z)).up();
+            
+            if (bonusChest.generate(servant, this.random, blockposition)) {
+                break;
+            }
+        }
     }
     
     public boolean canSpawnAt(int x, int z) {
@@ -484,6 +553,38 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         List<BiomeMeta> creatures = getChunkProviderServer().getPossibleCreatures(creatureType, position);
 
         return creatures != null && !creatures.isEmpty() ? creatures.contains(spawnEntry) : false;
+    }
+    
+    @Nullable
+    public BlockPosition findNearestMapFeature(String structureName, BlockPosition position, boolean flag) {
+        return this.getChunkProviderServer().findNearestMapFeature(servant, structureName, position, flag);
+    }
+    
+    public void wakeAllPlayers() {
+        allPlayersSleeping = false;
+        
+        for (EntityHuman player : players) {
+            if (player.isSleeping()) {
+                player.a(false, false, true); // PAIL: wakeUpPlayer
+            }
+        }
+        
+        if (getGameRules().getBoolean("doWeatherCycle")) {
+            resetRainAndThunder();
+        }
+    }
+
+    public void resetRainAndThunder() {
+        this.worldData.setStorm(false);
+        this.worldData.setThundering(false);
+        // If we stop due to everyone sleeping we should reset the weather duration to some other random value.
+        // Not that everyone ever manages to get the whole server to sleep at the same time....
+        if (!this.worldData.hasStorm()) {
+            this.worldData.setWeatherDuration(0);
+        }
+        if (!this.worldData.isThundering()) {
+            this.worldData.setThunderDuration(0);
+        }
     }
     
     /**
@@ -522,52 +623,48 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     }
     
     public void doTick() {
-        // TODO: super.doTick();
+        this.tickWeather();
         
         if (this.getWorldData().isHardcore() && this.getDifficulty() != EnumDifficulty.HARD) {
             this.getWorldData().setDifficulty(EnumDifficulty.HARD);
         }
-
-        servant.worldProvider.k().b();
+        
         if (this.everyoneDeeplySleeping()) {
             if (this.getGameRules().getBoolean("doDaylightCycle")) {
-                long i = this.worldData.getDayTime() + 24000L;
+                long newDay = this.worldData.getDayTime() + 24000L;
 
-                this.worldData.setDayTime(i - i % 24000L);
+                this.worldData.setDayTime(newDay - newDay % 24000L);
             }
-
-            this.f();
+            
+            this.wakeAllPlayers();
         }
-
-        // CraftBukkit start - Only call spawner if we have players online and the world allows for mobs or animals
+        
+        // CraftBukkit - only call spawner if we have players online and the world allows for mobs or animals
         long time = this.worldData.getTime();
-        if (this.getGameRules().getBoolean("doMobSpawning") && this.worldData.getType() != WorldType.DEBUG_ALL_BLOCK_STATES && (servant.allowMonsters || servant.allowAnimals) && players.size() > 0) {
+        if (this.getGameRules().getBoolean("doMobSpawning") && getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES && (servant.allowMonsters || servant.allowAnimals) && players.size() > 0) {
             timings.mobSpawn.startTiming();
             this.spawnerCreature.findChunksForSpawning(this, servant.allowMonsters && (ticksPerMonsterSpawns != 0 && time % ticksPerMonsterSpawns == 0L), servant.allowAnimals && (ticksPerAnimalSpawns != 0 && time % ticksPerAnimalSpawns == 0L), this.worldData.getTime() % 400L == 0L);
             timings.mobSpawn.stopTiming();
-            // CraftBukkit end
         }
-
-        timings.doChunkUnload.startTiming();
-        this.chunkProvider.unloadChunks();
-        int j = this.a(1.0F);
-
-        if (j != this.af()) {
-            this.c(j);
-        }
-
+        
+        int skylight = this.calculateSkylightSubtracted(1.0F);
+        this.setSkylightSubtracted(skylight);
+        
         this.worldData.setTime(this.worldData.getTime() + 1L);
         if (this.getGameRules().getBoolean("doDaylightCycle")) {
             this.worldData.setDayTime(this.worldData.getDayTime() + 1L);
         }
+        
+        timings.doChunkUnload.startTiming();
+        this.chunkProvider.unloadChunks();
         timings.doChunkUnload.stopTiming();
         
         timings.scheduledBlocks.startTiming();
-        this.a(false);
+        this.updateBlocks(false);
         timings.scheduledBlocks.stopTiming();
         
         timings.chunkTicks.startTiming();
-        this.j();
+        this.tickChunks();
         timings.chunkTicks.stopTiming();
         
         timings.doChunkMap.startTiming();
@@ -576,24 +673,54 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         
         timings.doVillages.startTiming();
         servant.villages.tick();
-        this.siegeManager.a();
+        this.siegeManager.a(); // PAIL: tick
         timings.doVillages.stopTiming();
         
         timings.doPortalForcer.startTiming();
-        this.portalTravelAgent.a(this.getTime());
+        this.portalTravelAgent.a(getTime()); // PAIL: removeStalePortalLocations
         timings.doPortalForcer.stopTiming();
-
+        
         timings.doSounds.startTiming();
-        this.ao();
+        this.sendQueuedBlockActions();
         timings.doSounds.stopTiming();
-
-        timings.doChunkGC.startTiming();// Spigot
+        
+        timings.doChunkGC.startTiming();
         this.getCraftWorld().processChunkGC();
         timings.doChunkGC.stopTiming();
     }
-    
-    public void saveLevel() {
-        this.dataManager.a();
+
+    /**
+     * Saves the chunks to disk
+     */
+    public void saveLevel() throws ExceptionWorldConflict {
+        //this.dataManager.a(); overrided
+        
+        timings.worldSaveLevel.startTiming();
+        this.checkSession();
+        
+        // Saving secondary data for nether/end
+        for (WorldServer world : server.worlds) {
+            if (world instanceof SecondaryWorldServer) {
+                ((SecondaryWorldServer) world).c();
+            }
+        }
+        
+        // Set world border info back
+        this.worldData.a(this.getWorldBorder().getSize());
+        this.worldData.d(this.getWorldBorder().getCenterX());
+        this.worldData.c(this.getWorldBorder().getCenterZ());
+        this.worldData.e(this.getWorldBorder().getDamageBuffer());
+        this.worldData.f(this.getWorldBorder().getDamageAmount());
+        this.worldData.j(this.getWorldBorder().getWarningDistance());
+        this.worldData.k(this.getWorldBorder().getWarningTime());
+        this.worldData.b(this.getWorldBorder().j());
+        this.worldData.e(this.getWorldBorder().i());
+        
+        // Saving all data
+        this.dataManager.saveWorldData(this.worldData, (NBTTagCompound) null);
+        servant.worldMaps.a();
+        
+        timings.worldSaveLevel.stopTiming();
     }
     
     public void tickWeather() {
@@ -863,6 +990,92 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         }
     }
     
+    public void tickChunks() {
+        this.updateRandomLight();
+        
+        int tickSpeed = this.getGameRules().c("randomTickSpeed");
+        boolean raining = this.isRaining();
+        boolean thunder = this.isThundering();
+        
+        Iterator<Chunk> iterator = playerChunkMap.b();
+        while (iterator.hasNext()) {
+            Chunk chunk = iterator.next();
+            int x = chunk.locX * 16;
+            int z = chunk.locZ * 16;
+            
+            chunk.n(); // enqueueRelightChecks
+            chunk.b(false); // onTick
+            
+            if (!chunk.areNeighborsLoaded(1)) continue; // Spigot
+            
+            int LCG;
+            BlockPosition position;
+            if (!this.paperConfig.disableThunder && raining && thunder && this.random.nextInt(100000) == 0) { // Paper - Disable thunder
+                updateLCG = this.updateLCG * 3 + DIST_HASH;
+                LCG = this.updateLCG >> 2;
+                position = this.adjustToNearbyEntity(new BlockPosition(x + (LCG & 15), 0, z + (LCG >> 8 & 15)));
+                if (isRainingAt(position)) {
+                    DifficultyDamageScaler difficultydamagescaler = createDamageScaler(position);
+                    
+                    if (this.getGameRules().getBoolean("doMobSpawning") && this.random.nextDouble() < difficultydamagescaler.b() * paperConfig.skeleHorseSpawnChance) {
+                        EntityHorseSkeleton entityhorseskeleton = new EntityHorseSkeleton(servant);
+                        
+                        entityhorseskeleton.p(true);
+                        entityhorseskeleton.setAgeRaw(0);
+                        entityhorseskeleton.setPosition(position.getX(), position.getY(), position.getZ());
+                        this.addEntity(entityhorseskeleton, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.LIGHTNING); // CraftBukkit
+                        this.strikeLightning(new EntityLightning(servant, position.getX(), position.getY(), position.getZ(), true));
+                    } else {
+                        this.strikeLightning(new EntityLightning(servant, position.getX(), position.getY(), position.getZ(), false));
+                    }
+                }
+            }
+
+            if (!this.paperConfig.disableIceAndSnow && this.random.nextInt(16) == 0) { // Paper - Disable ice and snow
+                updateLCG = updateLCG * 3 + DIST_HASH;
+                LCG = updateLCG >> 2;
+                    position = this.getPrecipitationHeight(new BlockPosition(x + (LCG & 15), 0, z + (LCG >> 8 & 15)));
+                    BlockPosition down = position.down();
+
+                    if (canBlockFreezeSelf(down)) {
+                        CraftEventFactory.handleBlockFormEvent(servant, down, Blocks.ICE, null); // CraftBukkit
+                    }
+
+                    if (raining && canSnowAt(position, true)) {
+                        CraftEventFactory.handleBlockFormEvent(servant, position, Blocks.SNOW_LAYER, null); // CraftBukkit
+                    }
+
+                    if (raining && getBiomeAt(down).d()) { // PAIL: canRain
+                        this.getType(down).getBlock().h(servant, down);
+                    }
+            }
+            
+            timings.chunkTicksBlocks.startTiming();
+            if (tickSpeed > 0) {
+                for (ChunkSection section : chunk.getSections()) {
+                    if (section != Chunk.a && section.shouldTick()) {
+                        for (int i = 0; i < tickSpeed; i++) {
+                            updateLCG = updateLCG * 3 + DIST_HASH;
+                            LCG = updateLCG >> 2;
+                            int rX = LCG & 15;
+                            int rZ = LCG >> 8 & 15;
+                            int rY = LCG >> 16 & 15;
+                            IBlockData iblockdata = section.getType(rX, rY, rZ);
+                            Block block = iblockdata.getBlock();
+                            
+                            if (block.isTicking()) {
+                                // randomTick
+                                block.a(servant, new BlockPosition(rX + x, rY + section.getYPosition(), rZ + z), iblockdata, this.random);
+                            }
+                        }
+                    }
+                    
+                }
+            }
+            timings.chunkTicksBlocks.stopTiming();
+        }
+    }
+    
     public void tickPlayers() {
         for (Entity entity : this.players) {
             Entity entity1 = entity.bB();
@@ -898,6 +1111,27 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
                 this.entityList.remove(entity);
                 this.onEntityRemove(entity);
             }
+        }
+    }
+    
+    public BlockPosition adjustToNearbyEntity(BlockPosition previous) {
+        BlockPosition pos = this.getPrecipitationHeight(previous);
+        AxisAlignedBB aabb = (new AxisAlignedBB(pos, new BlockPosition(pos.getX(), this.getWorldHeight(), pos.getZ()))).g(3.0D);
+        List<EntityLiving> entities = this.getEntitiesOf(EntityLiving.class, aabb, new Predicate<EntityLiving>() {
+            @Override
+            public boolean apply(@Nullable EntityLiving entity) {
+                return entity != null && entity.isAlive() && canSeeSkyAt(entity.getChunkCoordinates());
+            }
+        });
+        
+        if (!entities.isEmpty()) {
+            return entities.get(this.random.nextInt(entities.size())).getChunkCoordinates();
+        } else {
+            if (pos.getY() == -1) {
+                pos = pos.up(2);
+            }
+
+            return pos;
         }
     }
     
@@ -983,6 +1217,47 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         }
     }
     
+    /**
+     * Saves all chunks to disk while updating progress bar
+     */
+    public void saveChunks(boolean saveExtraData, @Nullable IProgressUpdate callback) throws ExceptionWorldConflict {
+        TorchChunkProvider cps = getChunkProviderServer();
+        
+        if (cps.canSave()) {
+            // Paper - Incremental Auto Saving - Only fire event on full save
+            if (saveExtraData) Bukkit.getPluginManager().callEvent(new WorldSaveEvent(getCraftWorld()));
+            
+            timings.worldSave.startTiming();
+            if (saveExtraData || server.serverAutoSave) {
+                if (callback != null) {
+                    callback.a("Saving level"); // PAIL: displaySavingString
+                }
+                
+                this.saveLevel();
+                
+                if (callback != null) {
+                    callback.c("Saving chunks"); // PAIL: displayLoadingString
+                }
+            }
+            
+            timings.worldSaveChunks.startTiming();
+            cps.saveChunks(saveExtraData);
+            timings.worldSaveChunks.stopTiming();
+            
+            timings.worldSave.stopTiming();
+        }
+    }
+    
+    /**
+     * Saving extra data for all chunks,
+     * currently only called during execution of the Save All command
+     */
+    public void flushSave() {
+        TorchChunkProvider cps = getChunkProviderServer();
+        
+        if (cps.canSave()) cps.saveExtraData();
+    }
+    
     public boolean isChunkGeneratedAt(int cx, int cz) {
         return this.isChunkLoaded(cx, cz) ? true : this.chunkProvider.e(cx, cz);
     }
@@ -1016,8 +1291,6 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         }
         
         if (blockposition.isInvalidYLocation()) { // Paper
-            return false;
-        } else if (this.worldData.getType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
             return false;
         } else {
             Chunk chunk = this.getChunkAt(blockposition);
@@ -1090,34 +1363,234 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
             return this.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), BlockUpdater.UPDATE_NOTIFY);
         }
     }
+    
+    /**
+     * Returns whether we need updates in next tick
+     */
+    public boolean updateBlocks(boolean flag) {
+        timings.scheduledBlocksCleanup.startTiming();
+        int scheduledBlocks = this.scheduledBlocks.size();
+        if (scheduledBlocks > 65536) {
+            // CraftBukkit - If the server has too much to process over time, try to alleviate that
+            if (scheduledBlocks > 20 * 65536) {
+                scheduledBlocks = scheduledBlocks / 20;
+            } else {
+                scheduledBlocks = 65536;
+            }
+        }
+        
+        for (int i = 0; i < scheduledBlocks; i++) {
+            NextTickListEntry entry = this.scheduledBlocks.first();
+            if (!flag && entry.b > this.worldData.getTime()) {
+                break;
+            }
+            
+            this.scheduledBlocks.remove(entry);
+            this.pendingBlocks.add(entry);
+        }
+        timings.scheduledBlocksCleanup.stopTiming();
+        
+        /////////
+        
+        timings.scheduledBlocksTicking.startTiming();
+        Iterator<NextTickListEntry> iterator = this.pendingBlocks.iterator();
 
+        while (iterator.hasNext()) {
+            NextTickListEntry entry = iterator.next();
+            iterator.remove();
+            
+            if (this.areChunksLoadedBetween(entry.a.a(0, 0, 0), entry.a.a(0, 0, 0))) {
+                IBlockData blockData = this.getType(entry.a);
+                Timing timing = blockData.getBlock().getTiming().startTiming();
+                
+                if (blockData.getMaterial() != Material.AIR && Block.a(blockData.getBlock(), entry.a())) {
+                    try {
+                        stopPhysicsEvent = 
+                                !paperConfig.firePhysicsEventForRedstone &&
+                                (blockData.getBlock() instanceof BlockDiodeAbstract || blockData.getBlock() instanceof BlockRedstoneTorch);
+                        
+                        blockData.getBlock().b(servant, entry.a, blockData, this.random);
+                    } catch (Throwable t) {
+                        CrashReport report = CrashReport.a(t, "Exception while ticking a block");
+                        CrashReportSystemDetails details = report.a("Block being ticked");
+                        
+                        CrashReportSystemDetails.a(details, entry.a, blockData);
+                        throw new ReportedException(report);
+                    } finally {
+                        stopPhysicsEvent = false;
+                    }
+                }
+                
+                timing.stopTiming();
+            } else {
+                this.scheduleBlockUpdate(entry.a, entry.a(), 0);
+            }
+        }
+        timings.scheduledBlocksTicking.stopTiming();
+        
+        this.pendingBlocks.clear();
+        return !this.scheduledBlocks.isEmpty();
+    }
+    
+    /**
+     * Returns true if the identified block is pending to be updated(this tick)
+     */
+    public boolean isBlockUpdatePending(BlockPosition position, Block block) {
+        NextTickListEntry entry = new NextTickListEntry(position, block);
+        return this.pendingBlocks.contains(entry);
+    }
+
+    /**
+     * Returns true if the identified block is scheduled to be updated(next tick)
+     */
+    public boolean isBlockUpdateScheduled(BlockPosition position, Block block) {
+        NextTickListEntry entry = new NextTickListEntry(position, block);
+        return this.scheduledBlocks.contains(entry);
+    }
+    
+    public void scheduleBlockUpdate(BlockPosition pos, Block block, int delay) {
+        updateBlockTick(pos, block, delay, 0);
+    }
+    
+    public void updateBlockTick(BlockPosition pos, Block block, int delay, int priority) {
+        if (pos instanceof MutableBlockPosition || pos instanceof PooledBlockPosition) {
+            pos = new BlockPosition(pos);
+            logger.warn("Tried to assign a mutable BlockPos to tick data...", new Error(pos.getClass().toString()));
+        }
+
+        Material material = block.getBlockData().getMaterial();
+        if (this.scheduledUpdatesAreImmediate && material != Material.AIR) {
+            if (block.r()) { // PAIL: requiresUpdates
+                if (this.areChunksLoadedBetween(pos.a(-8, -8, -8), pos.a(8, 8, 8))) {
+                    IBlockData blockData = this.getType(pos);
+                    
+                    if (blockData.getMaterial() != Material.AIR && blockData.getBlock() == block) {
+                        blockData.getBlock().b(servant, pos, blockData, this.random); // updateTick
+                    }
+                }
+                
+                return;
+            }
+            delay = 1;
+        }
+        
+        NextTickListEntry entry = new NextTickListEntry(pos, block);
+        if (this.isChunkLoaded(pos)) {
+            if (material != Material.AIR) {
+                entry.a(delay + this.worldData.getTime()); // setScheduledTime
+                entry.a(priority); // setPriority
+            }
+            
+            if (!this.scheduledBlocks.contains(entry)) {
+                this.scheduledBlocks.add(entry);
+            }
+        }
+    }
+    
+    public void scheduleBlockUpdate(BlockPosition pos, Block block, int delay, int priority) {
+        if (pos instanceof MutableBlockPosition || pos instanceof PooledBlockPosition) {
+            pos = new BlockPosition(pos);
+            logger.warn("Tried to assign a mutable BlockPos to tick data...", new Error(pos.getClass().toString()));
+        }
+        
+        NextTickListEntry entry = new NextTickListEntry(pos, block);
+        
+        entry.a(priority); // setPriority
+        
+        Material material = block.getBlockData().getMaterial();
+        if (material != Material.AIR) {
+            entry.a(delay + this.worldData.getTime()); // setScheduledTime
+        }
+        
+        if (!this.scheduledBlocks.contains(entry)) {
+            this.scheduledBlocks.add(entry);
+        }
+    }
+    
+    @Nullable
+    public List<NextTickListEntry> getPendingUpdateBlocks(Chunk chunk, boolean removal) {
+        ChunkCoordIntPair pair = chunk.k();
+        int minX = (pair.x << 4) - 2;
+        int maxX = minX + 16 + 2;
+        int minZ = (pair.z << 4) - 2;
+        int maxZ = minZ + 16 + 2;
+
+        return this.getPendingUpdateBlocks(new StructureBoundingBox(minX, 0, minZ, maxX, 256, maxZ), removal);
+    }
+    
+    @Nullable
+    public List<NextTickListEntry> getPendingUpdateBlocks(StructureBoundingBox structureboundingbox, boolean removal) {
+        List<NextTickListEntry> blocks = null;
+
+        for (int i = 0; i < 2; ++i) {
+            Iterator<NextTickListEntry> iterator;
+
+            if (i == 0) {
+                iterator = this.scheduledBlocks.iterator();
+            } else {
+                iterator = this.pendingBlocks.iterator();
+            }
+            
+            while (iterator.hasNext()) {
+                NextTickListEntry entry = iterator.next();
+                BlockPosition pos = entry.a;
+
+                if (pos.getX() >= structureboundingbox.a && pos.getX() < structureboundingbox.d && pos.getZ() >= structureboundingbox.c && pos.getZ() < structureboundingbox.f) {
+                    if (removal) iterator.remove();
+
+                    if (blocks == null) blocks = Lists.newArrayList();
+                    
+                    blocks.add(entry);
+                }
+            }
+        }
+        
+        return blocks;
+    }
+    
+    public List<TileEntity> getTileEntities(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        List<TileEntity> list = Lists.newArrayList();
+        
+        // CraftBukkit start - Get tile entities from chunks instead of world
+        for (int chunkX = (minX >> 4); chunkX <= ((maxX - 1) >> 4); chunkX++) {
+            for (int chunkZ = (minZ >> 4); chunkZ <= ((maxZ - 1) >> 4); chunkZ++) {
+                Chunk chunk = getChunkAt(chunkX, chunkZ);
+                if (chunk == null) continue;
+                
+                for (TileEntity tile : chunk.tileEntities.values()) {
+                    if ((tile.position.getX() >= minX) && (tile.position.getY() >= minY) && (tile.position.getZ() >= minZ) && (tile.position.getX() < maxX) && (tile.position.getY() < maxY) && (tile.position.getZ() < maxZ)) {
+                        list.add(tile);
+                    }
+                }
+            }
+        }
+        
+        return list;
+    }
+    
     public boolean setTypeUpdate(BlockPosition blockposition, IBlockData iblockdata) {
         return this.setTypeAndData(blockposition, iblockdata, BlockUpdater.UPDATE_NOTIFY);
     }
 
     public void update(BlockPosition blockposition, Block block, boolean flag) {
-        if (this.worldData.getType() != WorldType.DEBUG_ALL_BLOCK_STATES) {
-            // CraftBukkit start
-            if (populating) return;
-            // CraftBukkit end
-            this.applyPhysics(blockposition, block, flag);
-        }
+        if (populating) return; // CraftBukkit
+        this.applyPhysics(blockposition, block, flag);
     }
     
     /**
      * Marks a vertical line of blocks as dirty
      */
-    public void markVerticalBlocksDirty(int x, int z, int k, int l) {
+    public void markVerticalBlocksDirty(int x, int z, int minY, int maxY) {
         int y;
         
-        if (k > l) {
-            y = l;
-            l = k;
-            k = y;
+        if (minY > maxY) {
+            y = maxY;
+            maxY = minY;
+            minY = y;
         }
         
         if (servant.worldProvider.m()) {
-            for (y = k; y <= l; ++y) {
+            for (y = minY; y <= maxY; ++y) {
                 this.checkLightFor(EnumSkyBlock.SKY, new BlockPosition(x, y, z));
             }
         }
@@ -2149,10 +2622,12 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         AsyncCatcher.catchOp("entity world add");
         
         for (Entity entity : entities) {
-            if (entity != null) continue;
+            if (entity == null) continue;
             
-            this.entityList.add(entity);
-            this.onEntityAdded(entity);
+            if (this.canAddEntity(entity)) {
+                this.entityList.add(entity);
+                this.onEntityAdded(entity);
+            }
         }
     }
     
@@ -2298,14 +2773,14 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
      * Returns the maxium world height, 256 in vanilla
      */
     public int getWorldHeight() {
-        return 256; // TODO: configurable?
+        return 256;
     }
     
     /**
      * Returns the actual maxium world height, the method considering the sky missing world
      */
     public int getActualWorldHeight() {
-        return servant.worldProvider.n() ? 128 : 256; // TODO: configurable?
+        return servant.worldProvider.isSkyMissing() ? 128 : 256;
     }
     
     /**
@@ -2628,24 +3103,6 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         }
     }
     
-    public IChunkProvider createChunkProvider() {
-        IChunkLoader ichunkloader = this.dataManager.createChunkLoader(servant.worldProvider);
-
-        org.bukkit.craftbukkit.generator.InternalChunkGenerator gen;
-
-        if (generator != null) {
-            gen = new CustomChunkGenerator(servant, this.getSeed(), generator);
-        } else if (servant.worldProvider instanceof WorldProviderHell) {
-            gen = new NetherChunkGenerator(servant, this.getSeed());
-        } else if (servant.worldProvider instanceof WorldProviderTheEnd) {
-            gen = new SkyLandsChunkGenerator(servant, this.getSeed());
-        } else {
-            gen = new NormalChunkGenerator(servant, this.getSeed());
-        }
-
-        return new ChunkProviderServer(servant, ichunkloader, new TimedChunkGenerator(servant, gen));
-    }
-    
     @Nullable
     public BlockPosition getDimensionSpawn() {
         return servant.worldProvider.h();
@@ -2655,9 +3112,29 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         tracker.sendPacketToEntity(entity, new PacketPlayOutEntityStatus(entity, data));
     }
     
+    public boolean canAddEntity(Entity entity) {
+        if (entity.dead) return false;
+        
+        UUID uuid = entity.getUniqueID();
+        Entity loadedEntity = this.entitiesByUUID.get(uuid);
+        // Remove the entity if already loaded
+        if (loadedEntity != null) {
+            boolean abortUnload = unloadedEntities.remove(loadedEntity);
+            if (abortUnload) {
+                if ((entity instanceof EntityHuman)) {
+                    logger.warn("Force-added player with duplicate UUID {}", uuid.toString());
+                }
+            }
+            
+            this.removeEntity(loadedEntity);
+        }
+        
+        return true;
+    }
+    
     public boolean addEntity(Entity entity) {
         // CraftBukkit start - Used for entities other than creatures
-        return addEntity(entity, SpawnReason.DEFAULT);
+        return canAddEntity(entity) ? addEntity(entity, SpawnReason.DEFAULT) : false;
     }
 
     public boolean addEntity(Entity entity, SpawnReason spawnReason) { // Changed signature, added SpawnReason
@@ -3508,10 +3985,79 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         return power;
     }
 
-    public void playBlockAction(BlockPosition blockposition, Block block, int i, int j) {
-        this.getType(blockposition).a(servant, blockposition, i, j);
+    public void playBlockAction(BlockPosition position, Block block, int eventId, int eventParam) {
+        BlockActionData eventData = new BlockActionData(position, block, eventId, eventParam);
+        
+        for (BlockActionData each : blockEventQueue[blockEventCacheIndex]) {
+            if (each.equals(eventData)) return;
+        }
+        
+        blockEventQueue[blockEventCacheIndex].add(eventData);
+    }
+    
+    public void sendQueuedBlockActions() {
+        while (!blockEventQueue[blockEventCacheIndex].isEmpty()) {
+            int prevIndex = this.blockEventCacheIndex;
+            blockEventCacheIndex ^= 1;
+
+            for (BlockActionData each : blockEventQueue[prevIndex]) {
+                if (fireBlockAction(each)) {
+                    // CraftBukkit - this.worldProvider.dimension -> this.dimension
+                    this.server.getPlayerList().sendPacketNearby((EntityHuman) null, each.a().getX(), each.a().getY(), each.a().getZ(), 64.0D, dimension, new PacketPlayOutBlockAction(each.a(), each.d(), each.b(), each.c()));
+                }
+            }
+            
+            this.blockEventQueue[prevIndex].clear();
+        }
+    }
+    
+    public boolean fireBlockAction(BlockActionData action) {
+        IBlockData blockData = this.getType(action.a()); // PAIL: a() -> getPosition
+        return blockData.getBlock() == action.d() ? // PAIL: d() -> getBlock 
+                blockData.a(servant, action.a(), action.b(), action.c()) : false; // PAIL: onBlockActionReceived
+    }
+    
+    public boolean canBuildAt(EntityHuman player, BlockPosition position) {
+        return !this.server.isBlockProtected(servant, position, player) && getWorldBorder().isInBounds(position);
+    }
+    
+    public DefinedStructureManager getStructureTemplateManager() {
+        return this.dataManager.h(); // PAIL: getStructureTemplateManager
     }
 
+    public void sendParticles(EnumParticle particleType, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArgs) {
+        sendParticles(particleType, false, xCoord, yCoord, zCoord, numberOfParticles, xOffset, yOffset, zOffset, particleSpeed, particleArgs);
+    }
+
+    public void sendParticles(EnumParticle particleType, boolean visible, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArgs) {
+        sendParticles(null, particleType, visible, particleSpeed, particleSpeed, particleSpeed, numberOfParticles, particleSpeed, particleSpeed, particleSpeed, particleSpeed, particleArgs);
+    }
+
+    /**
+     * Spawns the desired particle and sends the necessary packets to the relevant connected players
+     */
+    public void sendParticles(EntityPlayer sender, EnumParticle particleType, boolean visible, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArgs) {
+        PacketPlayOutWorldParticles particles = new PacketPlayOutWorldParticles(particleType, visible, (float) xCoord, (float) yCoord, (float) zCoord, (float) xOffset, (float) yOffset, (float) zOffset, (float) particleSpeed, numberOfParticles, particleArgs);
+        
+        for (EntityHuman each : players) {
+            EntityPlayer player = (EntityPlayer) each;
+            if (sender != null && !player.getBukkitEntity().canSee(sender.getBukkitEntity())) {
+                continue;
+            }
+            
+            sendPacketWithinDistance(player, visible, xCoord, yCoord, zCoord, particles);
+        }
+    }
+
+    public void sendPacketWithinDistance(EntityPlayer player, boolean longDistance, double x, double y, double z, Packet<?> packet) {
+        BlockPosition coord = player.getChunkCoordinates();
+        double offset = coord.distanceSquared(x, y, z);
+        
+        if (offset <= 1024.0D || longDistance && offset <= 262144.0D) {
+            player.playerConnection.sendPacket(packet);
+        }
+    }
+    
     public boolean isHumidAt(BlockPosition position) {
         BiomeBase biome = this.getBiomeAt(position);
         return biome.e();

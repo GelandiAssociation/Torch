@@ -12,7 +12,7 @@ public interface IDataManager {
 
     IChunkLoader createChunkLoader(WorldProvider worldprovider);
 
-    void saveWorldData(WorldData worlddata, NBTTagCompound nbttagcompound);
+    void saveWorldData(WorldData worlddata, NBTTagCompound hostPlayerData);
 
     void saveWorldData(WorldData worlddata);
 

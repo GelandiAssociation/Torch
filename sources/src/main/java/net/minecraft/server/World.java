@@ -217,7 +217,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     public World b() { // PAIL: init
-        return this;
+        return reactor.init().getServant();
     }
 
     public BiomeBase getBiome(final BlockPosition blockposition) {
@@ -484,21 +484,22 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
 
     public void a(double d0, double d1, double d2, SoundEffect soundeffect, SoundCategory soundcategory, float f, float f1, boolean flag) {}
 
-    // PAIL: playRecord (client-side only)
+    // playRecord (client-side only)
     public void a(BlockPosition blockposition, @Nullable SoundEffect soundeffect) {
         ;
     }
 
+    // spawnParticle (client-side only)
     public void addParticle(EnumParticle enumparticle, double d0, double d1, double d2, double d3, double d4, double d5, int... aint) {
-        this.a(enumparticle.c(), enumparticle.e(), d0, d1, d2, d3, d4, d5, aint);
+        ;
     }
 
-    // PAIL: spawnAlwaysVisibleParticle (client-side only)
+    // spawnAlwaysVisibleParticle (client-side only)
     public void a(int i, double d0, double d1, double d2, double d3, double d4, double d5, int... aint) {
         ;
     }
 
-    // PAIL: spawnParticle (client-side only)
+    // spawnParticle (client-side only)
     private void a(int i, boolean flag, double d0, double d1, double d2, double d3, double d4, double d5, int... aint) {
         ;
     }
@@ -586,11 +587,17 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         return true; // PAIL: isUpdateScheduled
     }
 
-    public void a(BlockPosition blockposition, Block block, int i) {} // scheduleUpdate
+    public void a(BlockPosition blockposition, Block block, int i) {
+        reactor.scheduleBlockUpdate(blockposition, block, i);
+    } // scheduleUpdate
 
-    public void a(BlockPosition blockposition, Block block, int i, int j) {} // updateBlockTick
+    public void a(BlockPosition blockposition, Block block, int i, int j) {
+        reactor.updateBlockTick(blockposition, block, i, j);
+    } // updateBlockTick
 
-    public void b(BlockPosition blockposition, Block block, int i, int j) {} // scheduleBlockUpdate
+    public void b(BlockPosition blockposition, Block block, int i, int j) {
+        reactor.scheduleBlockUpdate(blockposition, block, i, j);
+    } // scheduleBlockUpdate
 
     public void tickEntities() {
         reactor.tickEntities();
@@ -718,7 +725,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     public void doTick() {
-        this.t(); // Link to tick weather in WorldServer
+        reactor.doTick();
     }
 
     protected void I() {
@@ -729,7 +736,9 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         reactor.tickWeather();
     }
 
-    protected void j() {} // updateBlocks
+    protected void j() {
+        reactor.tickChunks();
+    } // tickChunks
 
     public void a(BlockPosition blockposition, IBlockData iblockdata, Random random) {
         reactor.immediateBlockTick(blockposition, iblockdata, random);
@@ -771,21 +780,21 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
      * Runs through the list of updates to run and ticks them
      */
     public boolean a(boolean flag) {
-        return false; // PAIL: tickUpdates
+        return reactor.updateBlocks(flag);
     }
 
     @Nullable
     public List<NextTickListEntry> a(Chunk chunk, boolean flag) {
-        return null;
+        return reactor.getPendingUpdateBlocks(chunk, flag);
     }
 
     @Nullable
     public List<NextTickListEntry> a(StructureBoundingBox structureboundingbox, boolean flag) {
-        return null;
+        return reactor.getPendingUpdateBlocks(structureboundingbox, flag);
     }
 
     public List<Entity> getEntities(@Nullable Entity entity, AxisAlignedBB axisalignedbb) {
-        return this.getEntities(entity, axisalignedbb, IEntitySelector.e);
+        return reactor.getEntities(entity, axisalignedbb);
     }
 
     public List<Entity> getEntities(@Nullable Entity entity, AxisAlignedBB axisalignedbb, @Nullable Predicate<? super Entity> predicate) {
@@ -953,7 +962,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     public boolean a(EntityHuman entityhuman, BlockPosition blockposition) {
-        return true;
+        return reactor.canBuildAt(entityhuman, blockposition);
     }
 
     public void broadcastEntityEffect(Entity entity, byte b0) {
@@ -988,7 +997,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     // Calls the method that checks to see if players are sleeping
     // Called by CraftPlayer.setPermanentSleeping()
     public void checkSleepStatus() {
-        everyoneSleeping();
+        reactor.checkEveryoneSleeping();
     }
     // CraftBukkit end
 
@@ -1034,7 +1043,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
         return reactor.getUniqueDataId(s);
     }
 
-    // PAIL: broadcastSound (not-implement)
+    // broadcastSound (not-implement)
     public void a(int i, BlockPosition blockposition, int j) {
         ;
     }
@@ -1115,7 +1124,7 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
     }
 
     public void a(Packet<?> packet) {
-        throw new UnsupportedOperationException("Can\'t send packets to server unless you\'re on the client."); // TODO
+        throw new UnsupportedOperationException("Can\'t send packets to server unless you\'re on the client.");
     }
 
     public LootTableRegistry ak() {
@@ -1124,6 +1133,6 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
 
     @Nullable
     public BlockPosition a(String s, BlockPosition blockposition, boolean flag) {
-        return null;
+        return reactor.findNearestMapFeature(s, blockposition, flag);
     }
 }

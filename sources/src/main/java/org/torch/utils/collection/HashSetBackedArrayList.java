@@ -155,7 +155,6 @@ public class HashSetBackedArrayList<E> implements List<E> {
     }
 
     protected static class ListIteratorImpl<E> implements ListIterator<E> {
-
         protected final HashSetBackedArrayList<E> list;
         protected int nextIndex;
         protected int lastRet;

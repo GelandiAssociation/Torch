@@ -9,20 +9,20 @@ import lombok.Getter;
 import org.torch.server.TorchCreatureSpawner;
 
 public final class SpawnerCreature implements org.torch.api.TorchServant {
-	@Getter private final TorchCreatureSpawner reactor;
-	
+    @Getter private final TorchCreatureSpawner reactor;
+
     // private static final int a = TorchCreatureSpawner.MOB_COUNT_DIV;
     private final Set b; // CraftBukkit // Torch
 
     public SpawnerCreature() {
-    	reactor = new TorchCreatureSpawner(this);
-    	
-    	b = reactor.getSpawnableChunks();
+        reactor = new TorchCreatureSpawner(this);
+
+        b = reactor.getSpawnableChunks();
     }
 
     // Spigot start - get entity count only from chunks being processed in b
     private int getEntityCount(WorldServer server, Class oClass) {
-    	return reactor.getEntityCount(server, oClass);
+        return reactor.getEntityCount(server.reactor, oClass);
         // Paper end
         /* int i = 0;
         Iterator<Long> it = this.b.iterator();
@@ -41,11 +41,11 @@ public final class SpawnerCreature implements org.torch.api.TorchServant {
     // Spigot end
 
     public int a(WorldServer worldserver, boolean flag, boolean flag1, boolean flag2) {
-        return reactor.findChunksForSpawning(worldserver, flag, flag1, flag2);
+        return reactor.findChunksForSpawning(worldserver.reactor, flag, flag1, flag2);
     }
 
     private static BlockPosition getRandomPosition(World world, int i, int j) {
-        return TorchCreatureSpawner.createRandomPosition(world, i, j);
+        return TorchCreatureSpawner.createRandomPosition(world.reactor, i, j);
     }
 
     public static boolean a(IBlockData iblockdata) {
@@ -53,10 +53,10 @@ public final class SpawnerCreature implements org.torch.api.TorchServant {
     }
 
     public static boolean a(EntityInsentient.EnumEntityPositionType entityinsentient_enumentitypositiontype, World world, BlockPosition blockposition) {
-        return TorchCreatureSpawner.canCreatureTypeSpawnAtLocation(entityinsentient_enumentitypositiontype, world, blockposition);
+        return TorchCreatureSpawner.canCreatureTypeSpawnAtLocation(entityinsentient_enumentitypositiontype, world.reactor, blockposition);
     }
 
     public static void a(World world, BiomeBase biomebase, int i, int j, int k, int l, Random random) {
-        TorchCreatureSpawner.performWorldGenerateSpawning(world, biomebase, i, j, k, l, random);
+        TorchCreatureSpawner.performWorldGenerateSpawning(world.reactor, biomebase, i, j, k, l, random);
     }
 }

@@ -294,9 +294,9 @@ public final class TorchCreatureSpawner implements TorchReactor {
         }
     }
 
-    private static EntityInsentient createCreature(final TorchWorld world, final Class<?> entityClass) {
+    private static EntityInsentient createCreature(final TorchWorld world, final Class<? extends EntityInsentient> entityClass) {
         try {
-            return (EntityInsentient) entityClass.getConstructor(World.class).newInstance(world);
+            return entityClass.getConstructor(World.class).newInstance(world);
         } catch (final Throwable t) {
             t.printStackTrace();
             ServerInternalException.reportInternalException(t);

@@ -813,6 +813,9 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
             world.addIWorldAccess(new WorldManager(getMinecraftServer(), world));
             world.getWorldData().setGameType(this.getGameMode());
+            
+            world.getReactor().initSkylight();
+            world.getReactor().initWeather();
 
             worlds.add(world);
             getPlayerList().setPlayerFileData(worlds.toArray(new WorldServer[worlds.size()]));
@@ -1064,10 +1067,10 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
             try { Thread.sleep(100); } catch (InterruptedException ex) {}
         }
 
-        if (getMinecraftServer().worldServer != null) {
+        if (!worlds.isEmpty()) {
             logger.info("Saving worlds");
 
-            for (WorldServer world : getMinecraftServer().worldServer) {
+            for (WorldServer world : worlds) {
                 if (world != null) world.savingDisabled = false;
             }
 
@@ -1092,13 +1095,6 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                 logger.warn("Something went wrong url encoding {}", new Object[] { world });
             }
         }
-    }
-
-    /**
-     * Returns the world instances
-     */
-    public WorldServer[] getWorldServers() {
-        return getMinecraftServer().worldServer;
     }
 
     /**

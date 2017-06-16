@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 
+import org.torch.server.TorchWorld;
+
 // CraftBukkit start
 import java.util.LinkedList;
 // CraftBukkit end

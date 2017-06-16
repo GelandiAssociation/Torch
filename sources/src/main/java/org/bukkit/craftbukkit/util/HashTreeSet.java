@@ -8,7 +8,6 @@ import java.util.TreeSet;
 import com.koloboke.collect.set.hash.HashObjSets;
 
 public class HashTreeSet<V> implements Set<V> {
-
     private Set<V> hash = HashObjSets.newMutableSet();
     private TreeSet<V> tree = new TreeSet<V>();
 
@@ -112,5 +111,4 @@ public class HashTreeSet<V> implements Set<V> {
     public V first() {
         return tree.first();
     }
-
 }

@@ -119,20 +119,20 @@ public abstract class BiomeBase {
 
     public List<BiomeBase.BiomeMeta> getMobs(EnumCreatureType enumcreaturetype) {
         switch (enumcreaturetype) {
-        case MONSTER:
-            return this.u;
+            case MONSTER:
+                return this.u;
 
-        case CREATURE:
-            return this.v;
+            case CREATURE:
+                return this.v;
 
-        case WATER_CREATURE:
-            return this.w;
+            case WATER_CREATURE:
+                return this.w;
 
-        case AMBIENT:
-            return this.x;
+            case AMBIENT:
+                return this.x;
 
-        default:
-            return Collections.emptyList();
+            default:
+                return Collections.emptyList();
         }
     }
 
@@ -426,13 +426,13 @@ public abstract class BiomeBase {
             this.c = j;
             this.d = k;
         }
-        
+
         public Class<? extends EntityInsentient> entityClass() {
-        	return this.b;
+            return this.b;
         }
 
         @Override
-		public String toString() {
+        public String toString() {
             return this.b.getSimpleName() + "*(" + this.c + "-" + this.d + "):" + this.a;
         }
     }

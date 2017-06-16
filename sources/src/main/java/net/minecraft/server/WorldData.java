@@ -632,7 +632,7 @@ public class WorldData {
         this.C = enumdifficulty;
         // CraftBukkit start
         PacketPlayOutServerDifficulty packet = new PacketPlayOutServerDifficulty(this.getDifficulty(), this.isDifficultyLocked());
-        for (EntityHuman player : world.getReactor().players) {
+        for (EntityHuman player : world.players) {
             ((EntityPlayer) player).playerConnection.sendPacket(packet);
         }
         // CraftBukkit end
