@@ -97,7 +97,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
         int spawnableChunks = 0;
         BlockPosition spawnPoint = world.getSpawn();
         
-        MutableBlockPosition currentPos = new BlockPosition.MutableBlockPosition();
+        MutableBlockPosition currentPos = new MutableBlockPosition();
 
         for (EnumCreatureType type : EnumCreatureType.values()) {
             // CraftBukkit - use per-world spawn limits
@@ -296,7 +296,7 @@ public final class TorchCreatureSpawner implements TorchReactor {
 
     private static EntityInsentient createCreature(final TorchWorld world, final Class<? extends EntityInsentient> entityClass) {
         try {
-            return entityClass.getConstructor(World.class).newInstance(world);
+            return entityClass.getConstructor(World.class).newInstance(world.servant);
         } catch (final Throwable t) {
             t.printStackTrace();
             ServerInternalException.reportInternalException(t);

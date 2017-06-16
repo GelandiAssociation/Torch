@@ -407,7 +407,7 @@ public final class TorchChunkProvider implements net.minecraft.server.IChunkProv
     /**
      * Checks to see if a chunk exists at x, z
      */
-    public boolean isLoaded(int chunkX, int chunkZ) {
+    public boolean isChunkLoaded(int chunkX, int chunkZ) {
         return this.chunks.containsKey(ChunkCoordIntPair.chunkXZ2Int(chunkX, chunkZ));
     }
 

@@ -277,18 +277,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
     }
 
     private void an() { // setDebugWorldSettings
-        throw new UnsupportedOperationException();
-        /* this.worldData.f(false);
-        this.worldData.c(true);
-        this.worldData.setStorm(false);
-        this.worldData.setThundering(false);
-        this.worldData.i(1000000000);
-        this.worldData.setDayTime(6000L);
-        this.worldData.setGameType(EnumGamemode.SPECTATOR);
-        this.worldData.g(false);
-        this.worldData.setDifficulty(EnumDifficulty.PEACEFUL);
-        this.worldData.e(true);
-        this.getGameRules().set("doDaylightCycle", "false"); */
+        reactor.setDebugWorldSettings();
     }
 
     private void b(WorldSettings worldsettings) {

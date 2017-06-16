@@ -937,7 +937,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
 
         int index, size; CrashReport crashreport;
         for (index = 0, size = worlds.size(); index < size; index++) {
-            WorldServer world = this.worlds.get(index);
+            TorchWorld world = this.worlds.get(index).getReactor();
 
             try {
                 world.timings.doTick.startTiming();
@@ -950,7 +950,7 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                     throw new RuntimeException("Error generating crash report", throwable);
                 }
 
-                world.a(crashreport);
+                world.addInfoToCrashReport(crashreport);
                 throw new ReportedException(crashreport);
             }
 
@@ -965,12 +965,12 @@ public final class TorchServer implements Runnable, org.torch.api.TorchReactor {
                     throw new RuntimeException("Error generating crash report", throwable);
                 }
 
-                world.a(crashreport);
+                world.addInfoToCrashReport(crashreport);
                 throw new ReportedException(crashreport);
             }
 
             world.getTracker().updatePlayers();
-            world.getReactor().explosionDensityCache.clear(); // Paper - Optimize explosions
+            world.explosionDensityCache.clear(); // Paper - Optimize explosions
         }
 
         MinecraftTimings.connectionTimer.startTiming();

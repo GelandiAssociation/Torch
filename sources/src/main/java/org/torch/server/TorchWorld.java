@@ -440,6 +440,8 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
             try {
                 this.createSpawnPoint(settings);
                 
+                if (getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES) this.setDebugWorldSettings();
+                
                 this.worldData.d(true); // PAIL: setServerInitialized
             } catch (Throwable t) {
                 CrashReport report = CrashReport.a(t, "Exception initializing level");
@@ -455,12 +457,28 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         }
     }
     
+    public void setDebugWorldSettings() {
+        this.worldData.f(false);
+        this.worldData.c(true);
+        this.worldData.setStorm(false);
+        this.worldData.setThundering(false);
+        this.worldData.i(1000000000);
+        this.worldData.setDayTime(6000L);
+        this.worldData.setGameType(EnumGamemode.SPECTATOR);
+        this.worldData.g(false);
+        this.worldData.setDifficulty(EnumDifficulty.PEACEFUL);
+        this.worldData.e(true);
+        this.getGameRules().set("doDaylightCycle", "false");
+    }
+    
     /**
      * Creates a spawn position at random within 256 blocks of 0,0
      */
     public void createSpawnPoint(WorldSettings settings) {
         if (!servant.worldProvider.e()) { // PAIL: canRespawnHere
             this.worldData.setSpawn(BlockPosition.ZERO.up(servant.worldProvider.getSeaLevel()));
+        } else if (getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
+            this.worldData.setSpawn(BlockPosition.ZERO.up());
         } else {
             this.isLoading = true;
             WorldChunkManager chunkManager = servant.worldProvider.k();
@@ -641,7 +659,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         
         // CraftBukkit - only call spawner if we have players online and the world allows for mobs or animals
         long time = this.worldData.getTime();
-        if (this.getGameRules().getBoolean("doMobSpawning") && getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES && (servant.allowMonsters || servant.allowAnimals) && players.size() > 0) {
+        if (this.getGameRules().getBoolean("doMobSpawning") && getWorldType() != WorldType.DEBUG_ALL_BLOCK_STATES && (servant.allowMonsters || servant.allowAnimals) && players.size() > 0) {
             timings.mobSpawn.startTiming();
             this.spawnerCreature.findChunksForSpawning(this, servant.allowMonsters && (ticksPerMonsterSpawns != 0 && time % ticksPerMonsterSpawns == 0L), servant.allowAnimals && (ticksPerAnimalSpawns != 0 && time % ticksPerAnimalSpawns == 0L), this.worldData.getTime() % 400L == 0L);
             timings.mobSpawn.stopTiming();
@@ -993,87 +1011,96 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     public void tickChunks() {
         this.updateRandomLight();
         
-        int tickSpeed = this.getGameRules().c("randomTickSpeed");
-        boolean raining = this.isRaining();
-        boolean thunder = this.isThundering();
-        
-        Iterator<Chunk> iterator = playerChunkMap.b();
-        while (iterator.hasNext()) {
-            Chunk chunk = iterator.next();
-            int x = chunk.locX * 16;
-            int z = chunk.locZ * 16;
+        if (getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
+            Iterator<Chunk> iterator = this.getPlayerChunkMap().b();
             
-            chunk.n(); // enqueueRelightChecks
-            chunk.b(false); // onTick
+            while (iterator.hasNext()) {
+                iterator.next().b(false); // onTick
+            }
+        } else {
+            int tickSpeed = this.getGameRules().c("randomTickSpeed");
+            boolean raining = this.isRaining();
+            boolean thunder = this.isThundering();
             
-            if (!chunk.areNeighborsLoaded(1)) continue; // Spigot
-            
-            int LCG;
-            BlockPosition position;
-            if (!this.paperConfig.disableThunder && raining && thunder && this.random.nextInt(100000) == 0) { // Paper - Disable thunder
-                updateLCG = this.updateLCG * 3 + DIST_HASH;
-                LCG = this.updateLCG >> 2;
-                position = this.adjustToNearbyEntity(new BlockPosition(x + (LCG & 15), 0, z + (LCG >> 8 & 15)));
-                if (isRainingAt(position)) {
-                    DifficultyDamageScaler difficultydamagescaler = createDamageScaler(position);
-                    
-                    if (this.getGameRules().getBoolean("doMobSpawning") && this.random.nextDouble() < difficultydamagescaler.b() * paperConfig.skeleHorseSpawnChance) {
-                        EntityHorseSkeleton entityhorseskeleton = new EntityHorseSkeleton(servant);
+            Iterator<Chunk> iterator = playerChunkMap.b();
+            while (iterator.hasNext()) {
+                Chunk chunk = iterator.next();
+                int x = chunk.locX * 16;
+                int z = chunk.locZ * 16;
+                
+                chunk.n(); // enqueueRelightChecks
+                chunk.b(false); // onTick
+                
+                if (!chunk.areNeighborsLoaded(1)) continue; // Spigot
+                
+                int LCG;
+                BlockPosition position;
+                if (!this.paperConfig.disableThunder && raining && thunder && this.random.nextInt(100000) == 0) { // Paper - Disable thunder
+                    updateLCG = this.updateLCG * 3 + DIST_HASH;
+                    LCG = this.updateLCG >> 2;
+                    position = this.adjustToNearbyEntity(new BlockPosition(x + (LCG & 15), 0, z + (LCG >> 8 & 15)));
+                    if (isRainingAt(position)) {
+                        DifficultyDamageScaler difficultydamagescaler = createDamageScaler(position);
                         
-                        entityhorseskeleton.p(true);
-                        entityhorseskeleton.setAgeRaw(0);
-                        entityhorseskeleton.setPosition(position.getX(), position.getY(), position.getZ());
-                        this.addEntity(entityhorseskeleton, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.LIGHTNING); // CraftBukkit
-                        this.strikeLightning(new EntityLightning(servant, position.getX(), position.getY(), position.getZ(), true));
-                    } else {
-                        this.strikeLightning(new EntityLightning(servant, position.getX(), position.getY(), position.getZ(), false));
-                    }
-                }
-            }
-
-            if (!this.paperConfig.disableIceAndSnow && this.random.nextInt(16) == 0) { // Paper - Disable ice and snow
-                updateLCG = updateLCG * 3 + DIST_HASH;
-                LCG = updateLCG >> 2;
-                    position = this.getPrecipitationHeight(new BlockPosition(x + (LCG & 15), 0, z + (LCG >> 8 & 15)));
-                    BlockPosition down = position.down();
-
-                    if (canBlockFreezeSelf(down)) {
-                        CraftEventFactory.handleBlockFormEvent(servant, down, Blocks.ICE, null); // CraftBukkit
-                    }
-
-                    if (raining && canSnowAt(position, true)) {
-                        CraftEventFactory.handleBlockFormEvent(servant, position, Blocks.SNOW_LAYER, null); // CraftBukkit
-                    }
-
-                    if (raining && getBiomeAt(down).d()) { // PAIL: canRain
-                        this.getType(down).getBlock().h(servant, down);
-                    }
-            }
-            
-            timings.chunkTicksBlocks.startTiming();
-            if (tickSpeed > 0) {
-                for (ChunkSection section : chunk.getSections()) {
-                    if (section != Chunk.a && section.shouldTick()) {
-                        for (int i = 0; i < tickSpeed; i++) {
-                            updateLCG = updateLCG * 3 + DIST_HASH;
-                            LCG = updateLCG >> 2;
-                            int rX = LCG & 15;
-                            int rZ = LCG >> 8 & 15;
-                            int rY = LCG >> 16 & 15;
-                            IBlockData iblockdata = section.getType(rX, rY, rZ);
-                            Block block = iblockdata.getBlock();
+                        if (this.getGameRules().getBoolean("doMobSpawning") && this.random.nextDouble() < difficultydamagescaler.b() * paperConfig.skeleHorseSpawnChance) {
+                            EntityHorseSkeleton entityhorseskeleton = new EntityHorseSkeleton(servant);
                             
-                            if (block.isTicking()) {
-                                // randomTick
-                                block.a(servant, new BlockPosition(rX + x, rY + section.getYPosition(), rZ + z), iblockdata, this.random);
-                            }
+                            entityhorseskeleton.p(true);
+                            entityhorseskeleton.setAgeRaw(0);
+                            entityhorseskeleton.setPosition(position.getX(), position.getY(), position.getZ());
+                            this.addEntity(entityhorseskeleton, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.LIGHTNING); // CraftBukkit
+                            this.strikeLightning(new EntityLightning(servant, position.getX(), position.getY(), position.getZ(), true));
+                        } else {
+                            this.strikeLightning(new EntityLightning(servant, position.getX(), position.getY(), position.getZ(), false));
                         }
                     }
-                    
                 }
+
+                if (!this.paperConfig.disableIceAndSnow && this.random.nextInt(16) == 0) { // Paper - Disable ice and snow
+                    updateLCG = updateLCG * 3 + DIST_HASH;
+                    LCG = updateLCG >> 2;
+                        position = this.getPrecipitationHeight(new BlockPosition(x + (LCG & 15), 0, z + (LCG >> 8 & 15)));
+                        BlockPosition down = position.down();
+
+                        if (canBlockFreezeSelf(down)) {
+                            CraftEventFactory.handleBlockFormEvent(servant, down, Blocks.ICE, null); // CraftBukkit
+                        }
+
+                        if (raining && canSnowAt(position, true)) {
+                            CraftEventFactory.handleBlockFormEvent(servant, position, Blocks.SNOW_LAYER, null); // CraftBukkit
+                        }
+
+                        if (raining && getBiomeAt(down).d()) { // PAIL: canRain
+                            this.getType(down).getBlock().h(servant, down);
+                        }
+                }
+                
+                timings.chunkTicksBlocks.startTiming();
+                if (tickSpeed > 0) {
+                    for (ChunkSection section : chunk.getSections()) {
+                        if (section != Chunk.a && section.shouldTick()) {
+                            for (int i = 0; i < tickSpeed; i++) {
+                                updateLCG = updateLCG * 3 + DIST_HASH;
+                                LCG = updateLCG >> 2;
+                                int rX = LCG & 15;
+                                int rZ = LCG >> 8 & 15;
+                                int rY = LCG >> 16 & 15;
+                                IBlockData iblockdata = section.getType(rX, rY, rZ);
+                                Block block = iblockdata.getBlock();
+                                
+                                if (block.isTicking()) {
+                                    // randomTick
+                                    block.a(servant, new BlockPosition(rX + x, rY + section.getYPosition(), rZ + z), iblockdata, this.random);
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+                timings.chunkTicksBlocks.stopTiming();
             }
-            timings.chunkTicksBlocks.stopTiming();
         }
+        
     }
     
     public void tickPlayers() {
@@ -1368,6 +1395,8 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
      * Returns whether we need updates in next tick
      */
     public boolean updateBlocks(boolean flag) {
+        if (getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES) return false;
+        
         timings.scheduledBlocksCleanup.startTiming();
         int scheduledBlocks = this.scheduledBlocks.size();
         if (scheduledBlocks > 65536) {

@@ -150,7 +150,7 @@ public class ChunkProviderServer implements IChunkProvider, org.torch.api.TorchS
     }
 
     public boolean isLoaded(int i, int j) {
-        return reactor.isLoaded(i, j);
+        return reactor.isChunkLoaded(i, j);
     }
 
     @Override
