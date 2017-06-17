@@ -67,7 +67,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
         
         spawnerCreature = reactor.getSpawnerCreature().getServant();
         siegeManager = reactor.getSiegeManager();
-        S = reactor.getBlockEventQueue();
+        S = reactor.getBlockActionQueue();
         //U = reactor.getPendingBlocks(); List -> Set
         ////////
         
@@ -226,13 +226,13 @@ public class WorldServer extends World implements IAsyncTaskHandler {
     @Override
     @Nullable
     public List<NextTickListEntry> a(Chunk chunk, boolean flag) {
-        return reactor.getPendingUpdateBlocks(chunk, flag);
+        return reactor.getUpdatingBlocks(chunk, flag);
     }
 
     @Override
     @Nullable
     public List<NextTickListEntry> a(StructureBoundingBox structureboundingbox, boolean flag) {
-        return reactor.getPendingUpdateBlocks(structureboundingbox, flag);
+        return reactor.getUpdatingBlocks(structureboundingbox, flag);
     }
 
     /* CraftBukkit start - We prevent spawning in general, so this butchering is not needed

@@ -766,11 +766,9 @@ public final class TorchPlayerList implements TorchReactor {
         syncPlayerInventoryHealth(newPlayerEntity);
         newPlayerEntity.updateAbilities();
 
-        Regulator.post(() -> {
-            for (MobEffect effect : oldPlayerEntity.getEffects()) {
-                if (!newPlayerEntity.playerConnection.isDisconnected()) newPlayerEntity.playerConnection.sendPacket(new PacketPlayOutEntityEffect(newPlayerEntity.getId(), effect));
-            }
-        });
+        for (MobEffect effect : oldPlayerEntity.getEffects()) {
+            if (!newPlayerEntity.playerConnection.isDisconnected()) newPlayerEntity.playerConnection.sendPacket(new PacketPlayOutEntityEffect(newPlayerEntity.getId(), effect));
+        }
 
         // Don't fire on respawn
         if (fromWorld != location.getWorld()) {

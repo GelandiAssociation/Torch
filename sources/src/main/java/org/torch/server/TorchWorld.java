@@ -269,8 +269,6 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     
     /** Is false if there are no players */
     private boolean allPlayersSleeping;
-    
-    private int emptyTime;
     /**
      * The teleporter to use when the entity is being transferred into the dimension
      */
@@ -280,7 +278,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     
     public VillageSiege siegeManager;
     
-    private final BlockActionDataList<BlockActionData>[] blockEventQueue = new BlockActionDataList[] { new BlockActionDataList<BlockActionData>(), new BlockActionDataList<BlockActionData>() };
+    private final BlockActionDataList<BlockActionData>[] blockActionQueue = new BlockActionDataList[] { new BlockActionDataList<BlockActionData>(), new BlockActionDataList<BlockActionData>() };
     private int blockEventCacheIndex;
     
     public TorchWorld(IDataManager dataHandler, WorldData data, WorldProvider worldprovider, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
@@ -580,7 +578,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     
     public void wakeAllPlayers() {
         allPlayersSleeping = false;
-        
+
         for (EntityHuman player : players) {
             if (player.isSleeping()) {
                 player.a(false, false, true); // PAIL: wakeUpPlayer
@@ -612,11 +610,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         if (!allPlayersSleeping) return false;
         
         for (EntityHuman player : players) {
-            if (player.isSpectator()) continue; // ignore spectators
-            
-            if (!player.isDeeplySleeping() && !player.fauxSleeping) {
-                return false;
-            }
+            if (!player.isDeeplySleeping()) return false;
         }
         
         return true;
@@ -630,11 +624,7 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
         allPlayersSleeping = false;
         
         for (EntityHuman player : players) {
-            if (player.isSpectator()) continue; // ignore spectators
-            
-            if (!player.isSleeping() && !player.fauxSleeping) {
-                return;
-            }
+            if (!player.isSleeping()) return;
         }
         
         allPlayersSleeping = true;
@@ -1537,18 +1527,18 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     }
     
     @Nullable
-    public List<NextTickListEntry> getPendingUpdateBlocks(Chunk chunk, boolean removal) {
+    public List<NextTickListEntry> getUpdatingBlocks(Chunk chunk, boolean removal) {
         ChunkCoordIntPair pair = chunk.k();
         int minX = (pair.x << 4) - 2;
         int maxX = minX + 16 + 2;
         int minZ = (pair.z << 4) - 2;
         int maxZ = minZ + 16 + 2;
 
-        return this.getPendingUpdateBlocks(new StructureBoundingBox(minX, 0, minZ, maxX, 256, maxZ), removal);
+        return this.getUpdatingBlocks(new StructureBoundingBox(minX, 0, minZ, maxX, 256, maxZ), removal);
     }
     
     @Nullable
-    public List<NextTickListEntry> getPendingUpdateBlocks(StructureBoundingBox structureboundingbox, boolean removal) {
+    public List<NextTickListEntry> getUpdatingBlocks(StructureBoundingBox structureboundingbox, boolean removal) {
         List<NextTickListEntry> blocks = null;
 
         for (int i = 0; i < 2; ++i) {
@@ -1602,8 +1592,10 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     }
 
     public void update(BlockPosition blockposition, Block block, boolean flag) {
-        if (populating) return; // CraftBukkit
-        this.applyPhysics(blockposition, block, flag);
+        if (getWorldType() != WorldType.DEBUG_ALL_BLOCK_STATES) {
+            if (populating) return; // CraftBukkit
+            this.applyPhysics(blockposition, block, flag);
+        }
     }
     
     /**
@@ -4017,26 +4009,26 @@ public final class TorchWorld implements TorchReactor, IBlockAccess, IAsyncTaskH
     public void playBlockAction(BlockPosition position, Block block, int eventId, int eventParam) {
         BlockActionData eventData = new BlockActionData(position, block, eventId, eventParam);
         
-        for (BlockActionData each : blockEventQueue[blockEventCacheIndex]) {
+        for (BlockActionData each : blockActionQueue[blockEventCacheIndex]) {
             if (each.equals(eventData)) return;
         }
         
-        blockEventQueue[blockEventCacheIndex].add(eventData);
+        blockActionQueue[blockEventCacheIndex].add(eventData);
     }
     
     public void sendQueuedBlockActions() {
-        while (!blockEventQueue[blockEventCacheIndex].isEmpty()) {
+        while (!blockActionQueue[blockEventCacheIndex].isEmpty()) {
             int prevIndex = this.blockEventCacheIndex;
             blockEventCacheIndex ^= 1;
 
-            for (BlockActionData each : blockEventQueue[prevIndex]) {
+            for (BlockActionData each : blockActionQueue[prevIndex]) {
                 if (fireBlockAction(each)) {
                     // CraftBukkit - this.worldProvider.dimension -> this.dimension
                     this.server.getPlayerList().sendPacketNearby((EntityHuman) null, each.a().getX(), each.a().getY(), each.a().getZ(), 64.0D, dimension, new PacketPlayOutBlockAction(each.a(), each.d(), each.b(), each.c()));
                 }
             }
             
-            this.blockEventQueue[prevIndex].clear();
+            blockActionQueue[prevIndex].clear();
         }
     }
     

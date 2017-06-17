@@ -1396,11 +1396,11 @@ public abstract class EntityHuman extends EntityLiving {
 
     @Override
     public boolean isSleeping() {
-        return this.sleeping;
+        return fauxSleeping || isSpectator() || sleeping; // Torch
     }
 
     public boolean isDeeplySleeping() {
-        return this.sleeping && this.sleepTicks >= 100;
+        return fauxSleeping || isSpectator() || sleeping && sleepTicks >= 100; // Torch
     }
 
     public void a(IChatBaseComponent ichatbasecomponent, boolean flag) {}

@@ -785,12 +785,12 @@ public abstract class World implements IBlockAccess, org.torch.api.TorchServant 
 
     @Nullable
     public List<NextTickListEntry> a(Chunk chunk, boolean flag) {
-        return reactor.getPendingUpdateBlocks(chunk, flag);
+        return reactor.getUpdatingBlocks(chunk, flag);
     }
 
     @Nullable
     public List<NextTickListEntry> a(StructureBoundingBox structureboundingbox, boolean flag) {
-        return reactor.getPendingUpdateBlocks(structureboundingbox, flag);
+        return reactor.getUpdatingBlocks(structureboundingbox, flag);
     }
 
     public List<Entity> getEntities(@Nullable Entity entity, AxisAlignedBB axisalignedbb) {
