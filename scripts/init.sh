@@ -7,6 +7,8 @@ workdir="$basedir/work"
 paperbasedir="$basedir/work/Paper"
 paperworkdir="$basedir/work/Paper/work"
 
+
+
 if [ "$2" == "--init" ]; then
 	echo "Initial Paper..."
 	(

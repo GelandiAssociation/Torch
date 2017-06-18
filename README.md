@@ -1,6 +1,6 @@
 # Torch (火苣)
 
-[![PayPayl donate button](https://img.shields.io/badge/paypal-donate-yellow.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=caowenkang1@qq.com&lc=US&item_name=Torch&currency_code=USD&bn=PP%2dDonationsBF%3apaypal%2ddonate%2dyellow%2esvg%3aNonHostedGuest) [![Build Status](https://travis-ci.org/TorchSpigot/Torch.svg?branch=master)](https://travis-ci.org/TorchSpigot/Torch) [![Minecraft](https://img.shields.io/badge/Minecraft-1.11.2-green.svg?style=flat)](https://www.minecraft.net/) [![Java](https://img.shields.io/badge/Java_JDK-v1.8-green.svg?style=flat)](https://www.java.com/) [![bStats](https://img.shields.io/badge/bStats-Torch-blue.svg?style=flat)](https://bstats.org/plugin/bukkit/Torch)
+[![PayPayl donate button](https://img.shields.io/badge/paypal-donate-yellow.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=caowenkang1@qq.com&lc=US&item_name=Torch&currency_code=USD&bn=PP%2dDonationsBF%3apaypal%2ddonate%2dyellow%2esvg%3aNonHostedGuest) [![Build Status](https://travis-ci.org/TorchSpigot/Torch.svg?branch=master)](https://travis-ci.org/TorchSpigot/Torch) [![Minecraft](https://img.shields.io/badge/Minecraft-1.12-green.svg?style=flat)](https://www.minecraft.net/) [![Java](https://img.shields.io/badge/Java_JDK-v1.8-green.svg?style=flat)](https://www.java.com/) [![bStats](https://img.shields.io/badge/bStats-Torch-blue.svg?style=flat)](https://bstats.org/plugin/bukkit/Torch)
 
 
 ### Introduction

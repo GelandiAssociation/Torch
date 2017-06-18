@@ -8,7 +8,7 @@ machine:
 
 dependencies:
   cache-directories:
-    - "work/Paper/work/1.11.2"
+    - "work/Paper/work"
   override:
     - git config --global user.email "circle@circleci.com"
     - git config --global user.name "CircleCI"
@@ -17,4 +17,4 @@ dependencies:
 
 test:
   post:
-    - yes|cp -rf ./Torchpowered-1.11.2.jar $CIRCLE_ARTIFACTS
+    - yes|cp -rf ./Torchpowered-1.12.jar $CIRCLE_ARTIFACTS
