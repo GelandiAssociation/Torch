@@ -20,6 +20,8 @@ public class Main {
     public static boolean useConsole = true;
 
     public static void main(String[] args) {
+    	System.out.println("开始加载 Torch 服务端，这可能花费一小段时间...");
+    	System.out.println("Start loading the Torch server, which can take a little time...");
         // Todo: Installation script
         OptionParser parser = new OptionParser() {
             {
@@ -190,19 +192,6 @@ public class Main {
 
                 if (options.has("noconsole")) {
                     useConsole = false;
-                }
-
-                if (Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
-                    Date buildDate = new SimpleDateFormat("yyyyMMdd-HHmm").parse(Main.class.getPackage().getImplementationVendor());
-
-                    Calendar deadline = Calendar.getInstance();
-                    deadline.add(Calendar.DAY_OF_YEAR, -14);
-                    if (buildDate.before(deadline.getTime())) {
-                        System.err.println("*** Error, this build is outdated ***");
-                        System.err.println("*** Please checkout from https://github.com/TorchSpigot/Torch ***"); // Paper // Torch
-                        System.err.println("*** Server will start in 9 seconds ***");
-                        Thread.sleep(TimeUnit.SECONDS.toMillis(9));
-                    }
                 }
 
                 // Spigot Start
