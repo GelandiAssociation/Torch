@@ -6,6 +6,8 @@
 ### Introduction
 Torch is a fork of [Paper](https://github.com/PaperMC/Paper) with multi-thread computing and further optimizations.
 We aim to be stable and fast. 
+Tip:The Torch has changed name to "VefLand",and the Old Project will not be updated.
+But it's still open sources.
 
 Features:
 + All features of Paper/Spigot are included
